@@ -8,6 +8,12 @@ package app.opentv.ui.player
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import app.opentv.ui.LocalLayoutClass
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -39,7 +45,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -210,6 +215,9 @@ fun PlayerScreen(
     // The channel list you were browsing, for channel up/down and the in-player list. Snapshotted
     // on entry so it doesn't shift under you mid-session.
     val queue = remember { PlaybackQueue.items }
+    // Touch devices get swipe gestures, a back arrow and an on-screen channel-list button —
+    // the d-pad paths (Left for the list, Back to leave) don't exist there.
+    val touch = LocalLayoutClass.current.isTouch
 
     fun reveal() {
         controlsVisible = true
@@ -396,7 +404,13 @@ fun PlayerScreen(
             .focusRequester(rootFocus)
             .focusable()
             .pointerInput(Unit) {
-                detectTapGestures { if (controlsVisible) controlsVisible = false else reveal() }
+                detectTapGestures {
+                    when {
+                        channelListVisible -> channelListVisible = false
+                        controlsVisible -> controlsVisible = false
+                        else -> reveal()
+                    }
+                }
             },
     ) {
         AndroidView(
@@ -415,6 +429,12 @@ fun PlayerScreen(
             },
             update = { it.resizeMode = resizeMode },
         )
+
+        // Swipe left for the next channel, right for the previous — like turning pages.
+        PlayerGestureLayer(enabled = touch && !inPip && !channelListVisible && panel == Panel.NONE) { dir ->
+            zapBy(-dir)
+            reveal()
+        }
 
         // The channel number as you type it, top-right, until it resolves.
         if (numberEntry.isNotEmpty() && !inPip) {
@@ -475,6 +495,40 @@ fun PlayerScreen(
             else -> ""
         }
 
+        if (touch) {
+            AnimatedVisibility(
+                visible = controlsVisible && !inPip,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter),
+            ) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)))
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { controller.stop(); onBack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    if (queue.isNotEmpty()) {
+                        IconButton(onClick = { channelListVisible = true; interaction++ }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.List,
+                                contentDescription = stringResource(R.string.common_channels),
+                                tint = Color.White,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         AnimatedVisibility(
             visible = controlsVisible && !inPip,
             enter = fadeIn(),
@@ -522,7 +576,11 @@ fun PlayerScreen(
                     Spacer(Modifier.height(12.dp))
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // Scrolls on a phone in landscape, where every chip doesn't fit across.
+                Row(
+                    Modifier.then(if (touch) Modifier.horizontalScroll(rememberScrollState()) else Modifier),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     if (controller.isSeekable) {
                         BarChip(Icons.Filled.FastRewind, stringResource(R.string.player_rewind), false) {
                             controller.seekBackward(); interaction++

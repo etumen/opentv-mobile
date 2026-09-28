@@ -8,6 +8,18 @@ package app.opentv.ui.vod
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import app.opentv.ui.LocalLayoutClass
+import app.opentv.ui.player.PlayerGestureLayer
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -29,12 +41,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -48,7 +54,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -158,6 +163,7 @@ fun VodPlayerScreen(
     var scrubValue by remember { mutableFloatStateOf(0f) }
 
     var controlsVisible by remember { mutableStateOf(true) }
+    val touch = LocalLayoutClass.current.isTouch
     var interaction by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val barFocus = remember { FocusRequester() }
     val rootFocus = remember { FocusRequester() }
@@ -304,6 +310,31 @@ fun VodPlayerScreen(
             },
         )
 
+        // Touch: swipe right to skip forward, left to skip back (same step as the buttons), plus
+        // brightness/volume drags. See PlayerGestureLayer.
+        PlayerGestureLayer(enabled = touch && vodPanel == VodPanel.NONE) { dir ->
+            if (growingRec) seekRelative(dir * 15_000L)
+            else if (dir > 0) controller.seekForward() else controller.seekBackward()
+            reveal()
+        }
+        if (touch) {
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.TopStart),
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+                        .padding(8.dp),
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+                }
+            }
+        }
+
         when (val current = state) {
             is PlayerController.State.Buffering ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -405,7 +436,10 @@ fun VodPlayerScreen(
 
                 Spacer(Modifier.height(10.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.then(if (touch) Modifier.horizontalScroll(rememberScrollState()) else Modifier),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     VodChip(Icons.Filled.FastRewind, stringResource(R.string.player_rewind)) {
                         if (growingRec) seekRelative(-15_000) else controller.seekBackward(); interaction++
                     }
