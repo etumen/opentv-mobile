@@ -1,5 +1,18 @@
 # OpenTV
 
+> **📱 This is a phone-focused fork of [opentvproject/opentv](https://github.com/opentvproject/opentv).**
+> Upstream OpenTV is built d-pad first for Android TV; this fork reworks the experience for
+> Android phones while leaving the TV layout untouched:
+>
+> - Touch shell: top app bar and bottom tabs; browse in portrait, play in landscape
+> - Live TV: inline search scoped to the current category, category sheet with its own filter,
+>   "My categories" to show only the groups you care about (e.g. just `ES|`)
+> - Categories keep their country prefix and no longer merge across countries
+> - Settings screens with a proper phone top bar
+>
+> Everything else — and all the credit — belongs to the upstream project. Changes are kept
+> upstream-compatible so they can be offered back. Licensed GPL-3.0, like the original.
+
 **A free, open-source IPTV player for Android TV, Fire TV, phones and tablets.**
 
 No account. No subscription. No server of ours between you and your provider.
