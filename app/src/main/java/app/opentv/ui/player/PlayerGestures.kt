@@ -11,7 +11,11 @@ import android.provider.Settings
 import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.systemBarsIgnoringVisibility
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -52,13 +56,16 @@ import kotlin.math.abs
  *  - horizontal swipe: [onSwipe] with -1 (swiped left) or +1 (swiped right) — the caller decides
  *    what that means (zap channels on live, seek on VOD).
  *
- * Taps are deliberately not handled here: the player's own tap handler keeps toggling the controls,
- * and a drag past touch slop cancels that tap on its own. Brightness is a window override for this
- * screen only and is released when the player closes.
+ * Taps on the video land here ([onTap]) rather than on a handler around the whole player: this
+ * layer sits *under* the controls, so a tap on a button never also reaches it. (A root-level tap
+ * handler saw button taps too — the channel-list button opened the list and the same tap closed
+ * it again.) Brightness is a window override for this screen only, released when it closes.
  */
 @Composable
 fun BoxScope.PlayerGestureLayer(
     enabled: Boolean,
+    onTap: () -> Unit,
+    dragsEnabled: Boolean = true,
     onSwipe: (direction: Int) -> Unit,
 ) {
     if (!enabled) return
@@ -98,7 +105,9 @@ fun BoxScope.PlayerGestureLayer(
     Box(
         Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(Unit) { detectTapGestures { onTap() } }
+            .pointerInput(dragsEnabled) {
+                if (!dragsEnabled) return@pointerInput
                 // Axis is decided by the first movement past slop, then locked for the drag.
                 var axis = 0 // 0 = undecided, 1 = horizontal, 2 = vertical
                 var totalX = 0f
@@ -167,11 +176,27 @@ fun ImmersiveSystemBars(hidden: Boolean) {
     val controller = remember(window) {
         window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
     }
-    DisposableEffect(controller, hidden) {
-        val bars = androidx.core.view.WindowInsetsCompat.Type.systemBars()
+    val bars = androidx.core.view.WindowInsetsCompat.Type.systemBars()
+    // One request per change. (Restoring in a keyed onDispose sent "show" then "hide" back to
+    // back on every toggle, and the system sometimes applied them out of order — leaving the bars
+    // inverted: visible over the video, gone while the controls were up.)
+    LaunchedEffect(controller, hidden) {
         controller?.systemBarsBehavior =
             androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         if (hidden) controller?.hide(bars) else controller?.show(bars)
+    }
+    DisposableEffect(controller) {
         onDispose { controller?.show(bars) }
     }
 }
+
+/**
+ * Insets for player chrome that do NOT change when [ImmersiveSystemBars] hides or shows the bars.
+ * With the regular safeDrawing insets the controls jumped by the status-bar height at the moment
+ * the bars toggled — right under the finger — and the tap on the back / channel-list button was
+ * cancelled. Reserving the bars' space whether visible or not keeps every button still.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+val PlayerChromeInsets: androidx.compose.foundation.layout.WindowInsets
+    @Composable get() = androidx.compose.foundation.layout.WindowInsets.systemBarsIgnoringVisibility
+        .union(androidx.compose.foundation.layout.WindowInsets.displayCutout)

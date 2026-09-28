@@ -11,6 +11,7 @@ import androidx.activity.compose.BackHandler
 import app.opentv.ui.LocalLayoutClass
 import app.opentv.ui.player.PlayerGestureLayer
 import app.opentv.ui.player.ImmersiveSystemBars
+import app.opentv.ui.player.PlayerChromeInsets
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.WindowInsets
@@ -291,7 +292,9 @@ fun VodPlayerScreen(
             }
             .focusRequester(rootFocus)
             .focusable()
-            .pointerInput(Unit) {
+            .pointerInput(touch) {
+                // Touch devices take taps in PlayerGestureLayer (under the controls) instead.
+                if (touch) return@pointerInput
                 detectTapGestures { if (controlsVisible) controlsVisible = false else reveal() }
             },
     ) {
@@ -313,7 +316,11 @@ fun VodPlayerScreen(
 
         // Touch: swipe right to skip forward, left to skip back (same step as the buttons), plus
         // brightness/volume drags. See PlayerGestureLayer.
-        PlayerGestureLayer(enabled = touch && vodPanel == VodPanel.NONE) { dir ->
+        PlayerGestureLayer(
+            enabled = touch,
+            dragsEnabled = vodPanel == VodPanel.NONE,
+            onTap = { if (controlsVisible) controlsVisible = false else reveal() },
+        ) { dir ->
             if (growingRec) seekRelative(dir * 15_000L)
             else if (dir > 0) controller.seekForward() else controller.seekBackward()
             reveal()
@@ -329,7 +336,7 @@ fun VodPlayerScreen(
                 IconButton(
                     onClick = onBack,
                     modifier = Modifier
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+                        .windowInsetsPadding(PlayerChromeInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
                         .padding(8.dp),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
@@ -381,7 +388,7 @@ fun VodPlayerScreen(
                     // bar / display cutout in landscape). Zero on a TV, so the 10-foot layout is
                     // unchanged; the gradient above stays full-bleed to the screen edge.
                     .windowInsetsPadding(
-                        WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                        PlayerChromeInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                     )
                     .padding(horizontal = 28.dp, vertical = 20.dp),
             ) {

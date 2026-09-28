@@ -403,15 +403,13 @@ fun PlayerScreen(
             }
             .focusRequester(rootFocus)
             .focusable()
-            .pointerInput(Unit) {
-                detectTapGestures {
-                    when {
-                        channelListVisible -> channelListVisible = false
-                        controlsVisible -> controlsVisible = false
-                        else -> reveal()
-                    }
-                }
-            },
+            // Touch devices take taps in PlayerGestureLayer (under the controls) instead.
+            .then(
+                if (touch) Modifier
+                else Modifier.pointerInput(Unit) {
+                    detectTapGestures { if (controlsVisible) controlsVisible = false else reveal() }
+                },
+            ),
     ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
@@ -433,7 +431,17 @@ fun PlayerScreen(
         if (touch) ImmersiveSystemBars(hidden = !controlsVisible || inPip)
 
         // Swipe left for the next channel, right for the previous — like turning pages.
-        PlayerGestureLayer(enabled = touch && !inPip && !channelListVisible && panel == Panel.NONE) { dir ->
+        PlayerGestureLayer(
+            enabled = touch && !inPip,
+            dragsEnabled = !channelListVisible && panel == Panel.NONE,
+            onTap = {
+                when {
+                    channelListVisible -> channelListVisible = false
+                    controlsVisible -> controlsVisible = false
+                    else -> reveal()
+                }
+            },
+        ) { dir ->
             zapBy(-dir)
             reveal()
         }
@@ -509,7 +517,7 @@ fun PlayerScreen(
                         .fillMaxWidth()
                         .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)))
                         .windowInsetsPadding(
-                            WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+                            PlayerChromeInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
                         )
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -545,7 +553,7 @@ fun PlayerScreen(
                     // bar / display cutout in landscape). Zero on a TV, so the 10-foot layout is
                     // unchanged; the gradient above stays full-bleed to the screen edge.
                     .windowInsetsPadding(
-                        WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                        PlayerChromeInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                     )
                     .padding(horizontal = 28.dp, vertical = 20.dp),
             ) {
