@@ -154,3 +154,24 @@ fun BoxScope.PlayerGestureLayer(
         }
     }
 }
+
+/**
+ * True full screen on touch devices: the status and navigation bars are hidden while [hidden]
+ * (i.e. while the player's controls are away) and come back with the controls. A swipe from the
+ * edge still peeks them transiently. Bars are always restored when the player closes.
+ */
+@Composable
+fun ImmersiveSystemBars(hidden: Boolean) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    val window = remember { view.context.findActivity()?.window }
+    val controller = remember(window) {
+        window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+    }
+    DisposableEffect(controller, hidden) {
+        val bars = androidx.core.view.WindowInsetsCompat.Type.systemBars()
+        controller?.systemBarsBehavior =
+            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (hidden) controller?.hide(bars) else controller?.show(bars)
+        onDispose { controller?.show(bars) }
+    }
+}

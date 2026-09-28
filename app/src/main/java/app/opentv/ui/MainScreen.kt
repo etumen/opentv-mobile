@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.CircularProgressIndicator
@@ -194,6 +195,8 @@ fun MainScreen(
     if (LocalLayoutClass.current == LayoutClass.PHONE) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             PhoneTopBar(
+                isSyncing = isSyncing,
+                onRefresh = onRefresh,
                 onOpenSearch = onOpenSearch,
                 onOpenSettings = onOpenSettings,
                 onOpenProfiles = onOpenProfiles,
@@ -238,6 +241,8 @@ fun MainScreen(
 
 @Composable
 private fun PhoneTopBar(
+    isSyncing: Boolean,
+    onRefresh: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenProfiles: () -> Unit,
@@ -260,6 +265,12 @@ private fun PhoneTopBar(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
         )
+        // Re-sync every provider: new channels, films and series, plus the guide. Spins while any
+        // sync (manual or scheduled) runs, so a second tap can't stack another one.
+        IconButton(onClick = onRefresh, enabled = !isSyncing) {
+            if (isSyncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            else Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.phone_refresh))
+        }
         IconButton(onClick = onOpenSearch) {
             Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.nav_search))
         }

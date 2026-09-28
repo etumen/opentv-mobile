@@ -10,6 +10,7 @@ import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import app.opentv.ui.LocalLayoutClass
 import app.opentv.ui.player.PlayerGestureLayer
+import app.opentv.ui.player.ImmersiveSystemBars
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.WindowInsets
@@ -317,6 +318,7 @@ fun VodPlayerScreen(
             else if (dir > 0) controller.seekForward() else controller.seekBackward()
             reveal()
         }
+        if (touch) ImmersiveSystemBars(hidden = !controlsVisible)
         if (touch) {
             AnimatedVisibility(
                 visible = controlsVisible,

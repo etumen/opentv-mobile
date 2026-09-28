@@ -430,6 +430,8 @@ fun PlayerScreen(
             update = { it.resizeMode = resizeMode },
         )
 
+        if (touch) ImmersiveSystemBars(hidden = !controlsVisible || inPip)
+
         // Swipe left for the next channel, right for the previous — like turning pages.
         PlayerGestureLayer(enabled = touch && !inPip && !channelListVisible && panel == Panel.NONE) { dir ->
             zapBy(-dir)
