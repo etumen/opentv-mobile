@@ -716,21 +716,17 @@ class CatalogRepository(
         val movieCategories =
             if (moviesOn) runCatching { api.movieCategories(source) }.getOrDefault(emptyList())
             else emptyList()
-        val movies =
-            if (moviesOn) runCatching { api.movies(source) }.getOrDefault(emptyList())
-            else emptyList()
         val seriesCategories =
             if (seriesOn) runCatching { api.seriesCategories(source) }.getOrDefault(emptyList())
             else emptyList()
-        val series =
-            if (seriesOn) runCatching { api.series(source) }.getOrDefault(emptyList())
-            else emptyList()
-
         if (movieCategories.isNotEmpty() || seriesCategories.isNotEmpty()) {
             categoryDao.upsertAll(movieCategories + seriesCategories)
         }
-        if (movies.isNotEmpty()) movieDao.upsertAll(movies)
-        if (series.isNotEmpty()) seriesDao.upsertAll(series)
+
+        // Written batch by batch as they stream in: holding a big provider's whole library in
+        // memory (movies and series at once) crashed phones with an OutOfMemoryError.
+        if (moviesOn) runCatching { api.movies(source) { movieDao.upsertAll(it) } }
+        if (seriesOn) runCatching { api.series(source) { seriesDao.upsertAll(it) } }
     }
 
     private suspend fun syncM3u(source: Source, nowUtcMillis: Long): SyncResult {

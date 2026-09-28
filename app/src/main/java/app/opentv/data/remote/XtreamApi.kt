@@ -22,6 +22,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.decodeToSequence
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -121,13 +122,20 @@ class XtreamApi(
         }
     }
 
-    suspend fun movies(source: Source): List<Movie> = withContext(Dispatchers.IO) {
-        getJson(source, "get_vod_streams").arrayOrEmpty.mapNotNull { element ->
-            val obj = element.jsonObjectOrNull ?: return@mapNotNull null
-            val streamId = obj["stream_id"].asStringOrNull ?: return@mapNotNull null
-            val name = obj["name"].asStringOrNull ?: return@mapNotNull null
+    /**
+     * The movie library, handed over in batches as it downloads. A big provider's
+     * get_vod_streams runs to tens of MB; reading it whole (text + JSON tree + models at once)
+     * blew the heap on phones, so it is streamed element by element instead.
+     */
+    suspend fun movies(source: Source, onBatch: suspend (List<Movie>) -> Unit) =
+        streamArray(source, "get_vod_streams") { batch -> onBatch(batch.mapNotNull { movieFrom(source, it) }) }
+
+    private fun movieFrom(source: Source, element: JsonElement): Movie? {
+            val obj = element.jsonObjectOrNull ?: return null
+            val streamId = obj["stream_id"].asStringOrNull ?: return null
+            val name = obj["name"].asStringOrNull ?: return null
             val extension = obj["container_extension"].asStringOrNull?.takeIf { it.isNotBlank() }
-            Movie(
+            return Movie(
                 sourceId = source.id,
                 streamId = streamId,
                 name = name,
@@ -149,15 +157,17 @@ class XtreamApi(
                 genre = obj["genre"].asStringOrNull,
                 tmdbId = obj["tmdb_id"].asStringOrNull ?: obj["tmdb"].asStringOrNull,
             )
-        }
     }
 
-    suspend fun series(source: Source): List<Series> = withContext(Dispatchers.IO) {
-        getJson(source, "get_series").arrayOrEmpty.mapNotNull { element ->
-            val obj = element.jsonObjectOrNull ?: return@mapNotNull null
-            val seriesId = obj["series_id"].asStringOrNull ?: return@mapNotNull null
-            val name = obj["name"].asStringOrNull ?: return@mapNotNull null
-            Series(
+    /** The series library in batches, streamed for the same reason as [movies]. */
+    suspend fun series(source: Source, onBatch: suspend (List<Series>) -> Unit) =
+        streamArray(source, "get_series") { batch -> onBatch(batch.mapNotNull { seriesFrom(source, it) }) }
+
+    private fun seriesFrom(source: Source, element: JsonElement): Series? {
+            val obj = element.jsonObjectOrNull ?: return null
+            val seriesId = obj["series_id"].asStringOrNull ?: return null
+            val name = obj["name"].asStringOrNull ?: return null
+            return Series(
                 sourceId = source.id,
                 seriesId = seriesId,
                 name = name,
@@ -174,7 +184,6 @@ class XtreamApi(
                 genre = obj["genre"].asStringOrNull,
                 tmdbId = obj["tmdb_id"].asStringOrNull ?: obj["tmdb"].asStringOrNull,
             )
-        }
     }
 
     /**
@@ -352,6 +361,44 @@ class XtreamApi(
         }
     }
 
+    /**
+     * Streams a player_api JSON array, calling [onBatch] every [STREAM_BATCH] elements, so memory
+     * stays flat however large the catalogue is. A non-array reply (some panels send `{}` for
+     * "nothing") yields no batches.
+     */
+    @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+    private suspend fun streamArray(
+        source: Source,
+        action: String,
+        onBatch: suspend (List<JsonElement>) -> Unit,
+    ) = withContext(Dispatchers.IO) {
+        val url = baseUrl(source).newBuilder()
+            .encodedPath("/player_api.php")
+            .addQueryParameter("username", source.username.orEmpty())
+            .addQueryParameter("password", source.password.orEmpty())
+            .addQueryParameter("action", action)
+            .build()
+        http.newCall(request(source, url)).execute().use { response ->
+            if (!response.isSuccessful) throw XtreamException(describeHttpFailure(response.code))
+            val stream = java.io.BufferedInputStream(response.body?.byteStream() ?: return@use)
+            // Peek at the first non-blank byte: only an array is streamable.
+            stream.mark(64)
+            var first: Int
+            do { first = stream.read() } while (first != -1 && first.toChar().isWhitespace())
+            stream.reset()
+            if (first != '['.code) return@use
+            val batch = ArrayList<JsonElement>(STREAM_BATCH)
+            for (element in json.decodeToSequence(stream, JsonElement.serializer(), kotlinx.serialization.json.DecodeSequenceMode.ARRAY_WRAPPED)) {
+                batch += element
+                if (batch.size >= STREAM_BATCH) {
+                    onBatch(batch.toList())
+                    batch.clear()
+                }
+            }
+            if (batch.isNotEmpty()) onBatch(batch.toList())
+        }
+    }
+
     private fun request(source: Source, url: HttpUrl): Request =
         Request.Builder()
             .url(url)
@@ -454,3 +501,6 @@ private val JsonElement?.asLongOrNull: Long?
 
 private val JsonElement?.asDoubleOrNull: Double?
     get() = asStringOrNull?.toDoubleOrNull()
+
+/** Catalogue elements handed to the database per write while streaming a big list. */
+private const val STREAM_BATCH = 1_000
