@@ -59,14 +59,10 @@ fun ProvidersScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .screenPadding(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.settings_providers_title), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.weight(1f))
+        ScreenHeader(stringResource(R.string.settings_providers_title), onBack = onBack) {
             OutlinedButton(onClick = onAddSource) { Text(stringResource(R.string.providers_add)) }
-            Spacer(Modifier.width(12.dp))
-            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_done)) }
         }
 
         Spacer(Modifier.height(16.dp))

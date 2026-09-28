@@ -104,6 +104,20 @@ class AppSettings private constructor(context: Context) {
         _hiddenCategories.value = keys.toSet()
     }
 
+    /**
+     * The live category groups the user chose to see ("My categories"). Empty means no filter —
+     * everything shows. Unlike [hiddenCategories] this is a convenience, not a lock: it narrows
+     * the category list, All channels and global search, but never favourites.
+     */
+    private val _shownCategories =
+        MutableStateFlow(prefs.getStringSet(KEY_SHOWN_CATS, emptySet())!!.toSet())
+    val shownCategories: StateFlow<Set<String>> = _shownCategories.asStateFlow()
+
+    fun setShownCategories(keys: Set<String>) {
+        prefs.edit().putStringSet(KEY_SHOWN_CATS, keys).apply()
+        _shownCategories.value = keys.toSet()
+    }
+
     fun setHiddenUnlocked(unlocked: Boolean) {
         _hiddenUnlocked.value = unlocked
     }
@@ -428,6 +442,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_PREVIEW_SOUND = "guide_preview_sound"
         private const val KEY_PIN_HASH = "parental_pin_hash"
         private const val KEY_HIDDEN_CATS = "hidden_categories"
+        private const val KEY_SHOWN_CATS = "live_shown_categories"
         private const val KEY_ACTIVE_PROFILE = "active_profile_id"
         private const val KEY_RESUME_LAST = "resume_last_channel"
         private const val KEY_CONTENT_LIVE = "content_live"

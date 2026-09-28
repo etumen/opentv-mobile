@@ -51,6 +51,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.opentv.R
+import app.opentv.ui.LayoutClass
+import app.opentv.ui.LocalLayoutClass
 
 /**
  * The one settings entry point. Every other settings surface is reached from here, so there is
@@ -71,11 +73,15 @@ fun SettingsHubScreen(
     onOpenAbout: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val entries = listOf(
+    val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
+    val entries = listOfNotNull(
         HubEntry(Icons.Filled.Dns, stringResource(R.string.settings_providers_title), stringResource(R.string.settings_providers_subtitle), onOpenProviders),
         HubEntry(Icons.Filled.Extension, stringResource(R.string.settings_addons_title), stringResource(R.string.settings_addons_subtitle), onOpenAddons),
         HubEntry(Icons.Filled.LiveTv, stringResource(R.string.settings_guide_title), stringResource(R.string.settings_guide_subtitle), onOpenGuide),
-        HubEntry(Icons.Filled.GridView, stringResource(R.string.common_channels), stringResource(R.string.settings_channels_subtitle), onOpenChannels),
+        // On a phone the Live list already does this better (favourite star, long-press → Hide), and
+        // hidden channels come back via the web manager; TV keeps the d-pad manager.
+        if (isPhone) null
+        else HubEntry(Icons.Filled.GridView, stringResource(R.string.common_channels), stringResource(R.string.settings_channels_subtitle), onOpenChannels),
         HubEntry(Icons.Filled.PhoneAndroid, stringResource(R.string.settings_webmanager_title), stringResource(R.string.settings_webmanager_subtitle), onOpenWebManager),
         HubEntry(Icons.Filled.Tune, stringResource(R.string.settings_display_title), stringResource(R.string.settings_display_subtitle), onOpenDisplay),
         HubEntry(Icons.Filled.Storage, stringResource(R.string.settings_recording_title), stringResource(R.string.settings_recording_subtitle), onOpenRecordings),
@@ -87,15 +93,9 @@ fun SettingsHubScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .screenPadding(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Tv, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(12.dp))
-            Text(stringResource(R.string.nav_settings), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.weight(1f))
-            HubTextButton(stringResource(R.string.common_done), onBack)
-        }
+        ScreenHeader(stringResource(R.string.nav_settings), onBack = onBack, icon = Icons.Filled.Tv)
 
         Spacer(Modifier.height(20.dp))
 

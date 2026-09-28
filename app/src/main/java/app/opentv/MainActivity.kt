@@ -52,6 +52,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalContext
+import android.content.pm.ActivityInfo
+import app.opentv.core.findActivity
+import app.opentv.ui.LayoutClass
+import app.opentv.ui.LocalLayoutClass
+import app.opentv.ui.rememberLayoutClass
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.opentv.core.AppSettings
@@ -111,7 +119,9 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    OpenTvApp(isTelevision = isTelevision)
+                    CompositionLocalProvider(LocalLayoutClass provides rememberLayoutClass(isTelevision)) {
+                        OpenTvApp(isTelevision = isTelevision)
+                    }
                 }
             }
         }
@@ -232,6 +242,19 @@ private fun OpenTvApp(isTelevision: Boolean) {
     val profiles by profilesViewModel.profiles.collectAsState()
     val activeProfileId by profilesViewModel.activeProfileId.collectAsState()
     val activeProfileName = profiles.firstOrNull { it.id == activeProfileId }?.name ?: "Me"
+
+    // Phones browse in portrait and play in landscape: lock the orientation to whichever the
+    // current screen wants. TVs and tablets keep the manifest's free rotation.
+    val layoutClass = LocalLayoutClass.current
+    val activity = LocalContext.current.findActivity()
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    LaunchedEffect(layoutClass, currentRoute) {
+        if (layoutClass != LayoutClass.PHONE || activity == null) return@LaunchedEffect
+        val playing = currentRoute == Routes.PLAYER || currentRoute == Routes.VOD_PLAYER
+        activity.requestedOrientation =
+            if (playing) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+    }
 
     // Until the saved sources have loaded from the database, we cannot tell a first run from a
     // returning user — and guessing "first run" drops a returning user on the setup screen and

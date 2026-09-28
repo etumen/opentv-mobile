@@ -43,6 +43,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.opentv.R
 import app.opentv.core.ServiceLocator
 import app.opentv.ui.ChannelsViewModel
+import app.opentv.ui.toggleCategoryKey
 
 /**
  * Parental controls: a PIN, and a list of categories to keep out of the guide.
@@ -78,13 +79,9 @@ fun ParentalControlsScreen(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .screenPadding(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.settings_parental_title), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_done)) }
-        }
+        ScreenHeader(stringResource(R.string.settings_parental_title), onBack = onBack)
 
         Spacer(Modifier.height(20.dp))
 
@@ -144,10 +141,9 @@ fun ParentalControlsScreen(
                         ) {
                             Text(group.label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                             Switch(
-                                checked = group.key in hidden,
+                                checked = group.matches(hidden),
                                 onCheckedChange = { on ->
-                                    val next = hidden.toMutableSet().apply { if (on) add(group.key) else remove(group.key) }
-                                    settings.setHiddenCategories(next)
+                                    settings.setHiddenCategories(toggleCategoryKey(hidden, group, categories, on))
                                 },
                             )
                         }

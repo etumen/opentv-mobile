@@ -436,4 +436,18 @@
     <string name="settings_tmdb_save">Guardar clave</string>
     <string name="settings_tmdb_saved">Clave de TMDB guardada</string>
     <string name="settings_tmdb_active">Activa</string>
+    <string name="phone_live_filter_hint">Filtrar canales</string>
+    <string name="phone_live_categories">Categorías</string>
+    <string name="phone_live_filter_categories">Filtrar categorías</string>
+    <string name="phone_clear">Borrar</string>
+    <string name="phone_search_in">Buscar en %1$s</string>
+    <string name="phone_search_all">Buscar en todos los canales</string>
+    <string name="phone_my_categories">Mis categorías</string>
+    <string name="phone_only_filtered">Solo estas</string>
+    <string name="phone_select_all">Todas</string>
+    <string name="phone_select_none">Ninguna</string>
+    <string name="phone_done">Hecho</string>
+    <string name="phone_categories_count">%1$d de %2$d visibles</string>
+    <string name="phone_hide_channel">Ocultar canal</string>
+    <string name="phone_channel_hidden">%1$s oculto. Puedes recuperarlo en Ajustes › Gestionar desde el teléfono o la computadora.</string>
 </resources>

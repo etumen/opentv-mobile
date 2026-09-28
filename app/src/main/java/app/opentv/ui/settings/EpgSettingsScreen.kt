@@ -62,16 +62,12 @@ fun EpgSettingsScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .screenPadding(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.settings_guide_title), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.weight(1f))
+        ScreenHeader(stringResource(R.string.settings_guide_title), onBack = onBack) {
             OutlinedButton(onClick = { viewModel.refresh() }, enabled = !ui.syncing) {
                 Text(if (ui.syncing) stringResource(R.string.epg_updating) else stringResource(R.string.epg_update_now))
             }
-            Spacer(Modifier.width(12.dp))
-            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_done)) }
         }
 
         ui.statusLine?.let { line ->

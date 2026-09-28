@@ -82,6 +82,8 @@ import app.opentv.reminders.ReminderScheduler
 import app.opentv.player.PlaybackQueue
 import app.opentv.player.PlayerController
 import app.opentv.ui.ChannelsViewModel
+import app.opentv.ui.LayoutClass
+import app.opentv.ui.LocalLayoutClass
 import app.opentv.ui.RecordingBackgroundDialog
 import app.opentv.ui.RecordingBackgroundPrompt
 import coil.compose.AsyncImage
@@ -119,11 +121,14 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val graph = remember { ServiceLocator.get(context) }
+    val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
     val settings = remember { graph.settings }
     val previewEnabled by settings.guidePreviewVideo.collectAsState()
     val channelLayout by settings.channelLayout.collectAsState()
 
     val categories by viewModel.visibleCategoryGroups.collectAsState()
+    val allCategories by viewModel.filterableCategoryGroups.collectAsState()
+    val shownCategories by viewModel.shownCategories.collectAsState()
     val rows by viewModel.rows.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val favouritesOnly by viewModel.favouritesOnly.collectAsState()
@@ -254,7 +259,7 @@ fun HomeScreen(
     // screensaver fires while you're browsing with a channel running in the preview pane.
     DisposableEffect(previewEnabled, screenResumed) {
         val window = context.findActivity()?.window
-        if (previewEnabled && screenResumed) {
+        if (!isPhone && previewEnabled && screenResumed) {
             window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -274,7 +279,7 @@ fun HomeScreen(
     val recordingActive = activeRecordings.isNotEmpty()
     LaunchedEffect(highlightedRow?.key, previewEnabled, screenResumed, recordingActive) {
         val row = highlightedRow
-        if (!previewEnabled || !screenResumed || recordingActive || row == null) {
+        if (isPhone || !previewEnabled || !screenResumed || recordingActive || row == null) {
             previewController.stop()
             return@LaunchedEffect
         }
@@ -291,7 +296,41 @@ fun HomeScreen(
         )
     }
 
-    Row(Modifier.fillMaxSize()) {
+    val emptyContent: @Composable () -> Unit = {
+        when {
+            favouritesOnly -> NoFavouritesState()
+            // Work genuinely in progress: a sync is running, the catalogue check hasn't returned
+            // yet, or channels ARE on disk and the guide is still building. Showing "No channels"
+            // during it reads as failure thirty seconds after installing.
+            isSyncing || channelsPresent == null || channelsPresent == true -> LoadingState(isSyncing)
+            // Nothing syncing and the catalogue is confirmed empty: the last load failed or
+            // returned nothing — offer Retry and a way back to setup instead of spinning forever.
+            hasSources -> ChannelsErrorState(onRetry = onRefresh, onEditProvider = onAddSource)
+            else -> EmptyState(onAddSource)
+        }
+    }
+
+    if (isPhone) {
+        PhoneLiveLayout(
+            rows = rows,
+            sources = sources,
+            selectedSource = selectedSource,
+            categories = categories,
+            allCategories = allCategories,
+            shownCategories = shownCategories,
+            onSetShownCategories = viewModel::setShownCategories,
+            selectedCategory = selectedCategory,
+            favouritesOnly = favouritesOnly,
+            onSelectSource = viewModel::selectSource,
+            onSelectFavourites = viewModel::selectFavourites,
+            onSelectCategory = viewModel::selectCategory,
+            onQuery = viewModel::search,
+            onPlay = { requestLive(it.primary) },
+            onLongPress = { channelMenu = it },
+            onToggleFavourite = { viewModel.toggleFavourite(it) },
+            emptyContent = emptyContent,
+        )
+    } else Row(Modifier.fillMaxSize()) {
 
         // ---- Category rail -----------------------------------------------------------------
         // Width animates to 0 while focus is in the guide (see onFocusRow) so the grid gets the
@@ -377,20 +416,8 @@ fun HomeScreen(
         // ---- Preview + guide ---------------------------------------------------------------
         Column(Modifier.weight(1f)) {
             if (rows.isEmpty()) {
-                when {
-                    favouritesOnly -> NoFavouritesState()
-                    // Work genuinely in progress: a sync is running, the catalogue check hasn't
-                    // returned yet, or channels ARE on disk and the guide is still building. A
-                    // large provider takes a while, and showing "No channels" during it reads as
-                    // failure — which is how someone concludes an app is broken thirty seconds
-                    // after installing it.
-                    isSyncing || channelsPresent == null || channelsPresent == true -> LoadingState(isSyncing)
-                    // Nothing is syncing and the catalogue is confirmed empty. With a provider
-                    // configured, the last load failed or returned nothing — surface a clear error
-                    // with Retry and a way back to setup instead of spinning forever.
-                    hasSources -> ChannelsErrorState(onRetry = onRefresh, onEditProvider = onAddSource)
-                    else -> EmptyState(onAddSource)
-                }
+                // Loading / error / empty — see [emptyContent] for why each case is distinct.
+                emptyContent()
             } else {
                 // Hand the player the list you're browsing so it can zap channel up/down.
                 fun goFullscreen(channel: Channel) = requestLive(channel)
@@ -501,7 +528,8 @@ fun HomeScreen(
         Dialog(onDismissRequest = { recordTarget = null }) {
             Column(
                 Modifier
-                    .width(440.dp)
+                    .widthIn(max = 440.dp)
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(24.dp),
@@ -655,7 +683,8 @@ fun HomeScreen(
         Dialog(onDismissRequest = { pendingLiveChannel = null }) {
             Column(
                 Modifier
-                    .width(480.dp)
+                    .widthIn(max = 480.dp)
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(20.dp),
@@ -693,7 +722,8 @@ fun HomeScreen(
         Dialog(onDismissRequest = { channelMenu = null }) {
             Column(
                 Modifier
-                    .width(480.dp)
+                    .widthIn(max = 480.dp)
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surface)
                     .padding(20.dp),
@@ -784,6 +814,13 @@ fun HomeScreen(
                                 channelMenu = null
                                 recordTarget = menuRow to programme
                             }
+                        }
+                    }
+                    if (isPhone) {
+                        RecordActionRow(stringResource(R.string.phone_hide_channel)) {
+                            viewModel.hide(menuRow)
+                            Toast.makeText(context, context.getString(R.string.phone_channel_hidden, channel.shownName), Toast.LENGTH_LONG).show()
+                            channelMenu = null
                         }
                     }
                     RecordActionRow(stringResource(R.string.common_cancel)) { channelMenu = null }

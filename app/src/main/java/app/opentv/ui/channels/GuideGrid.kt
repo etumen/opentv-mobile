@@ -8,6 +8,8 @@ package app.opentv.ui.channels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -140,6 +142,8 @@ fun ChannelList(
     onToggleFavourite: (ChannelsViewModel.Row) -> Unit = {},
     onExitLeftFromChannel: () -> Boolean = { false },
     modifier: Modifier = Modifier,
+    /** Touch only: long-press opens the channel menu while a plain tap does [onSelectRow]. */
+    onLongPressRow: ((ChannelsViewModel.Row) -> Unit)? = null,
 ) {
     val now = System.currentTimeMillis()
     LazyColumn(
@@ -156,11 +160,13 @@ fun ChannelList(
                 onFocus = { onFocusRow(row) },
                 onToggleFavourite = { onToggleFavourite(row) },
                 onExitLeft = onExitLeftFromChannel,
+                onLongPress = onLongPressRow?.let { { it(row) } },
             )
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChannelListRow(
     row: ChannelsViewModel.Row,
@@ -170,6 +176,7 @@ private fun ChannelListRow(
     onFocus: () -> Unit,
     onToggleFavourite: () -> Unit,
     onExitLeft: () -> Boolean,
+    onLongPress: (() -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
     Row(
@@ -192,7 +199,7 @@ private fun ChannelListRow(
                 focused = it.isFocused
                 if (it.isFocused) onFocus()
             }
-            .clickable(onClick = onSelect)
+            .combinedClickable(onClick = onSelect, onLongClick = onLongPress)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

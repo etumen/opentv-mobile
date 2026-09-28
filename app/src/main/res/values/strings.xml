@@ -503,4 +503,18 @@
     <string name="settings_tmdb_save">Save key</string>
     <string name="settings_tmdb_saved">TMDB key saved</string>
     <string name="settings_tmdb_active">Active</string>
+    <string name="phone_live_filter_hint">Filter channels</string>
+    <string name="phone_live_categories">Categories</string>
+    <string name="phone_live_filter_categories">Filter categories</string>
+    <string name="phone_clear">Clear</string>
+    <string name="phone_search_in">Search in %1$s</string>
+    <string name="phone_search_all">Search all channels</string>
+    <string name="phone_my_categories">My categories</string>
+    <string name="phone_only_filtered">Only these</string>
+    <string name="phone_select_all">All</string>
+    <string name="phone_select_none">None</string>
+    <string name="phone_done">Done</string>
+    <string name="phone_categories_count">%1$d of %2$d shown</string>
+    <string name="phone_hide_channel">Hide channel</string>
+    <string name="phone_channel_hidden">%1$s hidden. Bring it back from Settings › Manage from your phone or computer.</string>
 </resources>

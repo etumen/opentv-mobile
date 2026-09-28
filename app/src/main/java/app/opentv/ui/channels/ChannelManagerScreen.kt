@@ -58,6 +58,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.opentv.R
 import app.opentv.data.model.shownName
 import app.opentv.ui.ChannelsViewModel
+import app.opentv.ui.settings.ScreenHeader
+import app.opentv.ui.settings.screenPadding
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 
@@ -125,13 +127,8 @@ fun ChannelManagerScreen(
     Column(Modifier.fillMaxSize()) {
         // Top bar: title + Done (Back also exits via BackHandler). Kept out of the two panes so
         // pressing RIGHT from a category lands in the channel list, not on this button.
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.channels_manager_title), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_done)) }
+        Box(Modifier.fillMaxWidth().screenPadding()) {
+            ScreenHeader(stringResource(R.string.channels_manager_title), onBack = onBack)
         }
 
         Row(Modifier.weight(1f).fillMaxWidth()) {

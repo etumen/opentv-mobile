@@ -70,14 +70,10 @@ fun ProfilesScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .screenPadding(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.profiles_title), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.weight(1f))
+        ScreenHeader(stringResource(R.string.profiles_title), onBack = onBack) {
             Button(onClick = { editing = NEW }) { Text(stringResource(R.string.profiles_add)) }
-            Spacer(Modifier.width(12.dp))
-            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_done)) }
         }
 
         Spacer(Modifier.height(20.dp))
@@ -132,7 +128,7 @@ private fun NameEntry(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .screenPadding(),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(heading, style = MaterialTheme.typography.headlineMedium)

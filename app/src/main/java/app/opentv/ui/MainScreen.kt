@@ -40,6 +40,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -156,6 +160,61 @@ fun MainScreen(
         )
     }
 
+    val content: @Composable () -> Unit = {
+        when (tab) {
+            Tab.LIVE -> HomeScreen(
+                isTelevision = isTelevision,
+                hasSources = hasSources,
+                isSyncing = isSyncing,
+                onPlayChannel = onPlayChannel,
+                onAddSource = onAddSource,
+                onRefresh = onRefresh,
+                onPlayCatchup = onPlayCatchup,
+            )
+            Tab.MOVIES -> MoviesScreen(
+                onOpenMovie = onOpenMovie,
+                onResume = onResume,
+                onOpenSearch = onOpenSearch,
+                hasSources = hasSources,
+                isSyncing = isSyncing,
+            )
+            Tab.SHOWS -> SeriesScreen(
+                onOpenSeries = onOpenSeries,
+                onResume = onResume,
+                onOpenSearch = onOpenSearch,
+                hasSources = hasSources,
+                isSyncing = isSyncing,
+            )
+            Tab.RECORDINGS -> RecordingsScreen(onPlay = onPlayRecording)
+        }
+    }
+
+    // Phones get a touch shell: a top app bar for the global actions and a bottom tab bar, so the
+    // full portrait width goes to the content instead of a TV-sized side rail.
+    if (LocalLayoutClass.current == LayoutClass.PHONE) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+            PhoneTopBar(
+                onOpenSearch = onOpenSearch,
+                onOpenSettings = onOpenSettings,
+                onOpenProfiles = onOpenProfiles,
+                activeProfileName = activeProfileName,
+            )
+            Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+            StatusBar()
+            NavigationBar {
+                visibleTabs.forEach { t ->
+                    NavigationBarItem(
+                        selected = tab == t,
+                        onClick = { tab = t },
+                        icon = { Icon(t.icon, contentDescription = null) },
+                        label = { Text(stringResource(t.labelRes), maxLines = 1) },
+                    )
+                }
+            }
+        }
+        return
+    }
+
     // The rail sits beside the content and pushes it, rather than floating over it. The Live TV
     // screen has its own category rail down its left edge, and an overlaying menu would land on top
     // of it and leave a sliver poking out — so they live side by side and never collide.
@@ -171,36 +230,45 @@ fun MainScreen(
             activeProfileName = activeProfileName,
         )
 
-        Box(Modifier.weight(1f).fillMaxHeight()) {
-            when (tab) {
-                Tab.LIVE -> HomeScreen(
-                    isTelevision = isTelevision,
-                    hasSources = hasSources,
-                    isSyncing = isSyncing,
-                    onPlayChannel = onPlayChannel,
-                    onAddSource = onAddSource,
-                    onRefresh = onRefresh,
-                    onPlayCatchup = onPlayCatchup,
-                )
-                Tab.MOVIES -> MoviesScreen(
-                    onOpenMovie = onOpenMovie,
-                    onResume = onResume,
-                    onOpenSearch = onOpenSearch,
-                    hasSources = hasSources,
-                    isSyncing = isSyncing,
-                )
-                Tab.SHOWS -> SeriesScreen(
-                    onOpenSeries = onOpenSeries,
-                    onResume = onResume,
-                    onOpenSearch = onOpenSearch,
-                    hasSources = hasSources,
-                    isSyncing = isSyncing,
-                )
-                Tab.RECORDINGS -> RecordingsScreen(onPlay = onPlayRecording)
-            }
-        }
+        Box(Modifier.weight(1f).fillMaxHeight()) { content() }
       }
       StatusBar()
+    }
+}
+
+@Composable
+private fun PhoneTopBar(
+    onOpenSearch: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenProfiles: () -> Unit,
+    activeProfileName: String,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_opentv_logo),
+            contentDescription = null,
+            modifier = Modifier.size(28.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "OpenTV",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = onOpenSearch) {
+            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.nav_search))
+        }
+        IconButton(onClick = onOpenProfiles) {
+            Icon(Icons.Filled.Person, contentDescription = activeProfileName)
+        }
+        IconButton(onClick = onOpenSettings) {
+            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.nav_settings))
+        }
     }
 }
 

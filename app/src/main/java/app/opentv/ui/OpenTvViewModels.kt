@@ -229,7 +229,19 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
      * filter across every underlying id at once. This is the on-device version of what
      * Viewella did on a server it had to pay for.
      */
-    data class CategoryGroup(val key: String, val label: String, val ids: List<String>)
+    /**
+     * [key] includes the country (`ES:deportes`) so `ES| Deportes` and `DE| Deportes` stay apart.
+     * [legacyKey] is the country-less key older builds stored (`deportes`); saved hidden / shown
+     * sets may still hold it, and it keeps matching every country's version — see [matches].
+     */
+    data class CategoryGroup(
+        val key: String,
+        val label: String,
+        val ids: List<String>,
+        val legacyKey: String = key,
+    ) {
+        fun matches(keys: Set<String>): Boolean = key in keys || legacyKey in keys
+    }
 
     val categoryGroups: StateFlow<List<CategoryGroup>> =
         combine(
@@ -249,14 +261,19 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
      * [managerCategoryGroups] so both group the rail identically.
      */
     private fun foldCategories(raw: List<Category>): List<CategoryGroup> {
-        val groups = LinkedHashMap<String, Pair<String, MutableList<String>>>()
+        val groups = LinkedHashMap<String, Triple<String, String, MutableList<String>>>()
         for (category in raw) {
             val n = ChannelNameNormalizer.normalize(category.name)
-            val key = n.groupKey.ifEmpty { category.id }
-            val entry = groups.getOrPut(key) { n.baseName to mutableListOf() }
-            entry.second += category.id
+            val legacy = n.groupKey.ifEmpty { category.id }
+            // Keep the country: it's what people filter by ("ES|"), and folding it away merged
+            // every country's "Sports" into one group.
+            val region = n.region?.uppercase()
+            val key = region?.let { "$it:$legacy" } ?: legacy
+            val label = region?.let { "$it| ${n.baseName}" } ?: n.baseName
+            val entry = groups.getOrPut(key) { Triple(label, legacy, mutableListOf()) }
+            entry.third += category.id
         }
-        return groups.map { (key, value) -> CategoryGroup(key, value.first, value.second) }
+        return groups.map { (key, v) -> CategoryGroup(key, v.first, v.third, legacyKey = v.second) }
     }
 
     /**
@@ -266,14 +283,32 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
     private val hiddenCategoryIds: StateFlow<Set<String>> =
         combine(categoryGroups, settings.hiddenCategories, settings.hiddenUnlocked) { groups, hidden, unlocked ->
             if (unlocked) emptySet()
-            else groups.filter { it.key in hidden }.flatMap { it.ids }.toSet()
+            else groups.filter { it.matches(hidden) }.flatMap { it.ids }.toSet()
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
-    /** The rail's view of categories: hidden ones drop out until the session is unlocked. */
-    val visibleCategoryGroups: StateFlow<List<CategoryGroup>> =
+    /** Every category the user may pick from: hidden ones drop out until the session is unlocked. */
+    val filterableCategoryGroups: StateFlow<List<CategoryGroup>> =
         combine(categoryGroups, settings.hiddenCategories, settings.hiddenUnlocked) { groups, hidden, unlocked ->
-            if (unlocked) groups else groups.filter { it.key !in hidden }
+            if (unlocked) groups else groups.filter { !it.matches(hidden) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The "My categories" choice (group keys); empty = no filter. */
+    val shownCategories: StateFlow<Set<String>> = settings.shownCategories
+
+    fun setShownCategories(keys: Set<String>) = settings.setShownCategories(keys)
+
+    /** The rail's view of categories: the filterable ones, narrowed to "My categories" if set. */
+    val visibleCategoryGroups: StateFlow<List<CategoryGroup>> =
+        combine(filterableCategoryGroups, settings.shownCategories) { groups, shown ->
+            if (shown.isEmpty()) groups else groups.filter { it.matches(shown) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Category ids behind "My categories", or null when no filter is set. Scopes All + global search. */
+    private val allowedCategoryIds: StateFlow<Set<String>?> =
+        combine(categoryGroups, settings.shownCategories) { groups, shown ->
+            if (shown.isEmpty()) null
+            else groups.filter { it.matches(shown) }.flatMap { it.ids }.toSet()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
      * One row on screen = one *logical* channel.
@@ -335,6 +370,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
         val favs: Boolean,
         val query: String,
         val hiddenIds: Set<String>,
+        val allowedIds: Set<String>? = null,
     )
 
     /**
@@ -372,13 +408,28 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
             val ids = category?.let { key -> groups.firstOrNull { it.key == key }?.ids }
             RowsKey(ids, favs, q, hidden)
         }
+            .combine(allowedCategoryIds) { key, allowed -> key.copy(allowedIds = allowed) }
             .combine(selectedSource) { key, source -> key to source }
             .flatMapLatest { (key, source) ->
-                val channelFlow = when {
-                    key.query.isNotBlank() -> graph.catalogRepository.searchChannels(key.query)
+                // Inside a category (or favourites) the query narrows that list; only from All does
+                // it search the whole catalogue.
+                val q = key.query.trim()
+                val scopedList = key.favs || key.categoryIds != null
+                val baseFlow = when {
                     key.favs -> graph.catalogRepository.observeFavouriteChannels()
                     key.categoryIds != null -> graph.catalogRepository.observeChannelsIn(key.categoryIds)
+                    q.isNotEmpty() -> graph.catalogRepository.searchChannels(q)
                     else -> graph.catalogRepository.observeChannels(source)
+                }
+                val channelFlow = baseFlow.map { list ->
+                    var out = list
+                    if (scopedList && q.isNotEmpty()) {
+                        out = out.filter { it.displayName.contains(q, true) || it.name.contains(q, true) }
+                    }
+                    // "My categories" narrows All and global search, never favourites or a picked category.
+                    val allowed = key.allowedIds
+                    if (!scopedList && allowed != null) out = out.filter { it.categoryId in allowed }
+                    out
                 }
                 // Combine the (per-category) channel list with the shared, already-grouped
                 // programme index. Switching category rebuilds only the channel→row grouping;
@@ -1269,4 +1320,24 @@ class WebManagerViewModel(app: Application) : AndroidViewModel(app) {
     override fun onCleared() {
         server.stop()
     }
+}
+
+/**
+ * Toggle [group] in a saved key set (parental hidden categories), coping with country-less legacy
+ * keys: turning off a group that only matched through its legacy key swaps that key for the
+ * explicit keys of its sibling countries, so only this one country is revealed.
+ */
+fun toggleCategoryKey(
+    current: Set<String>,
+    group: ChannelsViewModel.CategoryGroup,
+    all: List<ChannelsViewModel.CategoryGroup>,
+    on: Boolean,
+): Set<String> {
+    if (on) return current + group.key
+    var next = current - group.key
+    if (group.legacyKey != group.key && group.legacyKey in next) {
+        next = next - group.legacyKey +
+            all.filter { it.legacyKey == group.legacyKey && it.key != group.key }.map { it.key }
+    }
+    return next
 }

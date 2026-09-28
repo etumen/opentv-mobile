@@ -108,13 +108,9 @@ fun StremioAddonsScreen(onBack: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .screenPadding(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.settings_addons_title), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_done)) }
-        }
+        ScreenHeader(stringResource(R.string.settings_addons_title), onBack = onBack)
 
         Spacer(Modifier.height(8.dp))
         Text(
