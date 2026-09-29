@@ -518,4 +518,7 @@
     <string name="phone_hide_channel">Hide channel</string>
     <string name="phone_channel_hidden">%1$s hidden. Bring it back from Settings › Manage from your phone or computer.</string>
     <string name="phone_refresh">Refresh channels and library</string>
+    <string name="phone_search_movies">Search films</string>
+    <string name="phone_search_series">Search series</string>
+    <string name="phone_scope_all">All</string>
 </resources>

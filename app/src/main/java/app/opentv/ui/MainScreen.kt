@@ -102,7 +102,8 @@ fun MainScreen(
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
     onAddSource: () -> Unit,
     onRefresh: () -> Unit,
-    onOpenSearch: () -> Unit,
+    /** Opens search pre-filtered to a scope: "all", "movies" or "series". */
+    onOpenSearch: (scope: String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenProfiles: () -> Unit,
     onPlayRecording: (Recording) -> Unit,
@@ -175,14 +176,14 @@ fun MainScreen(
             Tab.MOVIES -> MoviesScreen(
                 onOpenMovie = onOpenMovie,
                 onResume = onResume,
-                onOpenSearch = onOpenSearch,
+                onOpenSearch = { onOpenSearch("movies") },
                 hasSources = hasSources,
                 isSyncing = isSyncing,
             )
             Tab.SHOWS -> SeriesScreen(
                 onOpenSeries = onOpenSeries,
                 onResume = onResume,
-                onOpenSearch = onOpenSearch,
+                onOpenSearch = { onOpenSearch("series") },
                 hasSources = hasSources,
                 isSyncing = isSyncing,
             )
@@ -197,7 +198,16 @@ fun MainScreen(
             PhoneTopBar(
                 isSyncing = isSyncing,
                 onRefresh = onRefresh,
-                onOpenSearch = onOpenSearch,
+                // The top-bar search starts in the scope of the tab you're on.
+                onOpenSearch = {
+                    onOpenSearch(
+                        when (tab) {
+                            Tab.MOVIES -> "movies"
+                            Tab.SHOWS -> "series"
+                            else -> "all"
+                        },
+                    )
+                },
                 onOpenSettings = onOpenSettings,
                 onOpenProfiles = onOpenProfiles,
                 activeProfileName = activeProfileName,
@@ -227,7 +237,7 @@ fun MainScreen(
             tabs = visibleTabs,
             current = tab,
             onSelect = { tab = it },
-            onOpenSearch = onOpenSearch,
+            onOpenSearch = { onOpenSearch("all") },
             onOpenSettings = onOpenSettings,
             onOpenProfiles = onOpenProfiles,
             activeProfileName = activeProfileName,

@@ -196,7 +196,9 @@ object Routes {
     const val HOME = "home"
     const val ADD_SOURCE = "add-source"
     const val PLAYER = "player/{channelId}"
-    const val SEARCH = "search"
+    /** [scope]: all | movies | series — which results the phone search starts filtered to. */
+    const val SEARCH = "search?scope={scope}"
+    fun search(scope: String = "all") = "search?scope=$scope"
     const val EPG_SETTINGS = "epg-settings"
     const val APP_SETTINGS = "app-settings"
     const val SETTINGS_HUB = "settings"
@@ -364,7 +366,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
                     },
                     onAddSource = { navController.navigate(Routes.ADD_SOURCE) },
                     onRefresh = sourcesViewModel::refreshAll,
-                    onOpenSearch = { navController.navigate(Routes.SEARCH) },
+                    onOpenSearch = { scope -> navController.navigate(Routes.search(scope)) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS_HUB) },
                     onOpenProfiles = { navController.navigate(Routes.PROFILES) },
                     onPlayRecording = { rec ->
@@ -408,8 +410,9 @@ private fun OpenTvApp(isTelevision: Boolean) {
                 )
             }
 
-            composable(Routes.SEARCH) {
+            composable(Routes.SEARCH) { entry ->
                 SearchScreen(
+                    initialScope = entry.arguments?.getString("scope") ?: "all",
                     onPlayChannel = { channel -> navController.navigate(Routes.player(channel.id)) },
                     onPlayMovie = { movie ->
                         navController.navigate(

@@ -5,6 +5,26 @@
  */
 package app.opentv.ui.channels
 
+import app.opentv.ui.LayoutClass
+import app.opentv.ui.LocalLayoutClass
+import app.opentv.ui.settings.screenPadding
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,9 +43,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -39,8 +57,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -73,9 +89,14 @@ fun SearchScreen(
     onPlayMovie: (Movie) -> Unit,
     onOpenSeries: (Series) -> Unit,
     onBack: () -> Unit,
+    initialScope: String = "all",
     viewModel: ChannelsViewModel = viewModel(),
     vodViewModel: VodViewModel = viewModel(),
 ) {
+    if (LocalLayoutClass.current == LayoutClass.PHONE) {
+        PhoneSearchScreen(onPlayChannel, onPlayMovie, onOpenSeries, onBack, initialScope, viewModel, vodViewModel)
+        return
+    }
     var query by remember { mutableStateOf("") }
     val channelResults by viewModel.searchResults.collectAsState()
     val movieResults by vodViewModel.movieResults.collectAsState()
@@ -145,6 +166,122 @@ fun SearchScreen(
                                     onOpenSeries(show)
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Search on a phone: a real text field with the system keyboard (the d-pad keyboard above is for
+ * remotes) and full-width results, filterable to one kind. Opened from Movies or Series it starts
+ * filtered to that kind, so "search films" only shows films.
+ */
+@Composable
+private fun PhoneSearchScreen(
+    onPlayChannel: (Channel) -> Unit,
+    onPlayMovie: (Movie) -> Unit,
+    onOpenSeries: (Series) -> Unit,
+    onBack: () -> Unit,
+    initialScope: String,
+    viewModel: ChannelsViewModel,
+    vodViewModel: VodViewModel,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var scope by rememberSaveable { mutableStateOf(initialScope) }
+    val channelResults by viewModel.searchResults.collectAsState()
+    val movieResults by vodViewModel.movieResults.collectAsState()
+    val seriesResults by vodViewModel.seriesResults.collectAsState()
+    val showChannels = scope == "all" || scope == "channels"
+    val showMovies = scope == "all" || scope == "movies"
+    val showSeries = scope == "all" || scope == "series"
+    val anyResults = (showChannels && channelResults.isNotEmpty()) ||
+        (showMovies && movieResults.isNotEmpty()) || (showSeries && seriesResults.isNotEmpty())
+    val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(query) {
+        viewModel.setSearchQuery(query)
+        vodViewModel.setVodSearchQuery(query)
+    }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+
+    Column(Modifier.fillMaxSize().screenPadding()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_done))
+            }
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it.take(60) },
+                placeholder = {
+                    Text(
+                        when (scope) {
+                            "movies" -> stringResource(R.string.phone_search_movies)
+                            "series" -> stringResource(R.string.phone_search_series)
+                            "channels" -> stringResource(R.string.phone_search_all)
+                            else -> stringResource(R.string.search_type_name)
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.phone_clear))
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                modifier = Modifier.weight(1f).focusRequester(focus),
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf(
+                "all" to stringResource(R.string.phone_scope_all),
+                "channels" to stringResource(R.string.common_channels),
+                "movies" to stringResource(R.string.nav_movies),
+                "series" to stringResource(R.string.nav_shows),
+            ).forEach { (key, label) ->
+                FilterChip(selected = scope == key, onClick = { scope = key }, label = { Text(label) })
+            }
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                query.isBlank() -> Hint(stringResource(R.string.search_start_hint))
+                query.trim().length < 2 -> Hint(stringResource(R.string.common_keep_typing))
+                !anyResults -> Hint(stringResource(R.string.search_no_results, query))
+                else -> LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    // Scrolling the results is the cue to put the keyboard away.
+                    modifier = Modifier.pointerInput(Unit) {
+                        awaitPointerEventScope { while (true) { awaitPointerEvent(); keyboard?.hide() } }
+                    },
+                ) {
+                    if (showChannels && channelResults.isNotEmpty()) {
+                        if (scope == "all") item { SectionHeader(stringResource(R.string.common_channels)) }
+                        items(channelResults, key = { "c${it.key}" }) { row ->
+                            SearchResultRow(row = row, onClick = { onPlayChannel(row.primary) })
+                        }
+                    }
+                    if (showMovies && movieResults.isNotEmpty()) {
+                        if (scope == "all") item { SectionHeader(stringResource(R.string.nav_movies)) }
+                        items(movieResults, key = { "m${it.id}" }) { movie ->
+                            VodResultRow(movie.displayTitle, movie.posterUrl, movie.year?.toString()) { onPlayMovie(movie) }
+                        }
+                    }
+                    if (showSeries && seriesResults.isNotEmpty()) {
+                        if (scope == "all") item { SectionHeader(stringResource(R.string.nav_shows)) }
+                        items(seriesResults, key = { "s${it.id}" }) { show ->
+                            VodResultRow(show.displayTitle, show.posterUrl, show.year?.toString()) { onOpenSeries(show) }
                         }
                     }
                 }
