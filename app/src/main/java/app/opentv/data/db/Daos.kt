@@ -382,6 +382,17 @@ interface ProgrammeDao {
     )
     fun observeWindow(fromUtcMillis: Long, toUtcMillis: Long): Flow<List<Programme>>
 
+    /** One-shot [observeWindow], for readers that refresh on [EpgRepository.guideVersion] instead. */
+    @Query(
+        """
+        SELECT * FROM programmes
+        WHERE endUtcMillis > :fromUtcMillis
+          AND startUtcMillis < :toUtcMillis
+        ORDER BY epgChannelId, startUtcMillis
+        """
+    )
+    suspend fun window(fromUtcMillis: Long, toUtcMillis: Long): List<Programme>
+
     /** What is on right now, for the channel list's "now playing" line. */
     @Query(
         """
@@ -440,11 +451,16 @@ interface MovieDao {
     fun observeRecentlyAdded(limit: Int): Flow<List<Movie>>
 
     /**
-     * Every movie, newest first — the working set for the Kotlin-side feeds (by-genre grouping,
+     * The newest movies (capped) — the working set for the Kotlin-side feeds (by-genre grouping,
      * genre-affinity recommendations, more-like-this). One pass over a few thousand rows is cheap;
      * per-genre `LIKE` queries would multiply round-trips and risk substring false positives.
+     *
+     * Capped because "every movie" is not a few thousand on big providers: at ~180k rows each
+     * feed held the whole library in memory and, re-run as a sync grew the count, occupied every
+     * Room query thread — search then queued behind them and never answered. Search itself still
+     * covers the full library; only these derived feeds sample the newest [FEED_SAMPLE] titles.
      */
-    @Query("SELECT * FROM movies ORDER BY addedMillis DESC")
+    @Query("SELECT * FROM movies ORDER BY addedMillis DESC LIMIT $FEED_SAMPLE")
     suspend fun all(): List<Movie>
 
     /** How many movies are on disk. A cheap COUNT the home feeds use to tell "the library grew"
@@ -536,8 +552,8 @@ interface SeriesDao {
     @Query("SELECT * FROM series ORDER BY addedMillis DESC LIMIT :limit")
     fun observeRecentlyAdded(limit: Int): Flow<List<Series>>
 
-    /** Every series, newest first — working set for the Kotlin-side by-genre / more-like-this feeds. */
-    @Query("SELECT * FROM series ORDER BY addedMillis DESC")
+    /** Newest series (capped, see MovieDao.all) — working set for the by-genre / more-like-this feeds. */
+    @Query("SELECT * FROM series ORDER BY addedMillis DESC LIMIT $FEED_SAMPLE")
     suspend fun all(): List<Series>
 
     /** How many series are on disk — the cheap "did the library grow" check for the home feeds. */
@@ -794,3 +810,6 @@ interface ReminderDao {
     @Query("DELETE FROM reminders WHERE endUtcMillis < :beforeMillis")
     suspend fun deleteEndedBefore(beforeMillis: Long)
 }
+
+/** Titles the derived VOD feeds (genre rows, recommendations, more-like-this) work from. */
+const val FEED_SAMPLE = 5000

@@ -122,6 +122,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val graph = remember { ServiceLocator.get(context) }
     val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
+    LaunchedEffect(isPhone) { viewModel.setCompactGuide(isPhone) }
     val settings = remember { graph.settings }
     val previewEnabled by settings.guidePreviewVideo.collectAsState()
     val channelLayout by settings.channelLayout.collectAsState()

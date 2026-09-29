@@ -25,6 +25,9 @@ import java.util.zip.GZIPInputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -80,6 +83,21 @@ class EpgRepository(
     fun observeWindow(fromUtcMillis: Long, toUtcMillis: Long): Flow<List<Programme>> =
         programmeDao.observeWindow(fromUtcMillis, toUtcMillis)
 
+    /**
+     * Bumped whenever the stored guide settles: a feed finished importing, old programmes were
+     * pruned, or a feed was removed. Heavy guide readers refresh on this instead of observing the
+     * programmes table directly — a Room flow re-runs its whole query on *every* batch a sync
+     * writes, which on a big guide meant re-reading hundreds of thousands of rows (and rebuilding
+     * every channel row) thousands of times per sync, starving every other query in the app.
+     */
+    private val _guideVersion = MutableStateFlow(0L)
+    val guideVersion: StateFlow<Long> = _guideVersion.asStateFlow()
+
+    private fun guideChanged() { _guideVersion.value++ }
+
+    suspend fun window(fromUtcMillis: Long, toUtcMillis: Long): List<Programme> =
+        withContext(Dispatchers.IO) { programmeDao.window(fromUtcMillis, toUtcMillis) }
+
     fun observeNow(nowUtcMillis: Long): Flow<List<Programme>> =
         programmeDao.observeNow(nowUtcMillis)
 
@@ -104,6 +122,7 @@ class EpgRepository(
         programmeDao.deleteForFeed(feed.id)
         aliasDao.deleteForFeed(feed.id)
         feedDao.delete(feed.id)
+        guideChanged()
     }
 
     /**
@@ -158,6 +177,8 @@ class EpgRepository(
                             nowUtcMillis,
                             "${result.programmes} programmes, ${result.channels} channels",
                         )
+                        // Each feed shows up as soon as it lands, not only after the last one.
+                        guideChanged()
                     }
                     is FeedResult.Failed -> {
                         failed++
@@ -171,6 +192,7 @@ class EpgRepository(
 
             if (succeeded > 0) {
                 programmeDao.deleteEndedBefore(nowUtcMillis - RETENTION_PAST_MILLIS)
+                guideChanged()
             }
 
             val (matched, total) = runMatcher()

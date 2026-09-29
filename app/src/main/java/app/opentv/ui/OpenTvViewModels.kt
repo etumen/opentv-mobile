@@ -374,6 +374,14 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
     )
 
     /**
+     * The phone's channel list only shows now/next, so it reads a few hours of guide instead of
+     * the full day the TV grid needs — a fraction of the rows on a big guide (100k+ per day).
+     */
+    private val compactGuide = MutableStateFlow(false)
+
+    fun setCompactGuide(compact: Boolean) { compactGuide.value = compact }
+
+    /**
      * The whole guide window's programmes, grouped by their EPG channel id once — the single
      * expensive step. Grouping the entire catalogue's programmes (hundreds of thousands of rows
      * on a big provider) is what made every category tap slow, because it used to run inside the
@@ -381,18 +389,22 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
      * category switch, so a tap only has to regroup that category's channels — quick.
      *
      * Keyed on the half-hour bucket (not the raw minute tick) so it holds steady while you flick
-     * between categories and refreshes at most twice an hour; the underlying Room flow also
-     * re-emits on its own when an EPG sync lands new programmes.
+     * between categories and refreshes at most twice an hour — plus once per EPG feed that lands
+     * ([EpgRepository.guideVersion]). Deliberately not a Room flow on the programmes table: that
+     * re-ran this whole-window read, and the 20k-row rebuild behind it, on every batch a guide
+     * sync wrote, which kept the database and CPU pinned for the entire sync.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private val programmeIndex: StateFlow<Map<String, List<Programme>>> =
         // windowStartMillis is a StateFlow, which already conflates equal values — an explicit
         // distinctUntilChanged() on it is a no-op (and a build error under our warnings-as-errors).
-        windowStartMillis
-            .flatMapLatest { windowStart ->
+        combine(windowStartMillis, graph.epgRepository.guideVersion, compactGuide) { windowStart, _, compact ->
+            windowStart to if (compact) COMPACT_LOOKAHEAD_MILLIS else GUIDE_LOOKAHEAD_MILLIS
+        }
+            .mapLatest { (windowStart, lookahead) ->
                 graph.epgRepository
-                    .observeWindow(windowStart, windowStart + GUIDE_LOOKAHEAD_MILLIS)
-                    .map { programmes -> programmes.groupBy { it.epgChannelId } }
+                    .window(windowStart, windowStart + lookahead)
+                    .groupBy { it.epgChannelId }
             }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
@@ -415,10 +427,16 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
                 // it search the whole catalogue.
                 val q = key.query.trim()
                 val scopedList = key.favs || key.categoryIds != null
+                val allowedIds = key.allowedIds
                 val baseFlow = when {
                     key.favs -> graph.catalogRepository.observeFavouriteChannels()
                     key.categoryIds != null -> graph.catalogRepository.observeChannelsIn(key.categoryIds)
                     q.isNotEmpty() -> graph.catalogRepository.searchChannels(q)
+                    // "All" with My categories set: let SQL fetch only those categories rather than
+                    // loading the whole line-up (50k+ channels on big providers) to filter in memory.
+                    // Bounded by SQLite's bind-variable limit; larger sets fall back to the filter below.
+                    allowedIds != null && allowedIds.size <= MAX_SQL_CATEGORY_IDS ->
+                        graph.catalogRepository.observeChannelsIn(allowedIds.toList())
                     else -> graph.catalogRepository.observeChannels(source)
                 }
                 val channelFlow = baseFlow.map { list ->
@@ -692,6 +710,8 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val GUIDE_LOOKAHEAD_MILLIS = 24 * 60 * 60 * 1000L  // a full day fits the grid
+        const val COMPACT_LOOKAHEAD_MILLIS = 6 * 60 * 60 * 1000L  // now/next list on phones
+        const val MAX_SQL_CATEGORY_IDS = 900  // under SQLite's 999 bind-variable cap
         const val DAY_MILLIS = 24 * 60 * 60 * 1000L
         const val GUIDE_MAX_DAYS = 6  // browse up to a week out, matching typical XMLTV depth
         const val HALF_HOUR_MILLIS = 30 * 60 * 1000L
