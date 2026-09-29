@@ -482,6 +482,10 @@ interface MovieDao {
     @Query("SELECT COUNT(*) FROM movies")
     suspend fun count(): Int
 
+    /** EXISTS, not COUNT: answers "is there anything?" without walking 180k rows. */
+    @Query("SELECT EXISTS(SELECT 1 FROM movies)")
+    fun observeAny(): Flow<Boolean>
+
     /**
      * Fallback for More-Like-This when a movie has no genre to match on: other titles from the same
      * source (and category, when it has one), best-rated first. Never returns the movie itself.
@@ -586,6 +590,9 @@ interface SeriesDao {
     /** How many series are on disk — the cheap "did the library grow" check for the home feeds. */
     @Query("SELECT COUNT(*) FROM series")
     suspend fun count(): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM series)")
+    fun observeAny(): Flow<Boolean>
 
     /** Fallback for More-Like-This when a series has no genre: same source/category, best-rated first. */
     @Query(

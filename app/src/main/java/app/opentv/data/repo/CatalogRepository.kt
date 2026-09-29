@@ -252,6 +252,8 @@ class CatalogRepository(
     /** How many movies / series are on disk — a cheap COUNT the home screen uses to tell "the
      *  library grew" from "unchanged since last open" without loading every row. */
     suspend fun movieCount(): Int = withContext(Dispatchers.IO) { movieDao.count() }
+    fun observeHasMovies(): Flow<Boolean> = movieDao.observeAny()
+    fun observeHasSeries(): Flow<Boolean> = seriesDao.observeAny()
     suspend fun seriesCount(): Int = withContext(Dispatchers.IO) { seriesDao.count() }
 
     /**

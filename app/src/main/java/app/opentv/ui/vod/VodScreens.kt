@@ -120,6 +120,7 @@ fun MoviesScreen(
     // Saveable: opening a title and coming back must land in the same category, not the shelves.
     var browseCategory by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val hasMovies by viewModel.hasMovies.collectAsState()
     val hasContent = resume.isNotEmpty() || recommended.isNotEmpty() ||
         recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
 
@@ -146,7 +147,9 @@ fun MoviesScreen(
             when {
                 browseCategory != null -> MovieCategoryGrid(categoryMovies, viewModel, onOpenMovie)
                 !hasContent -> when {
-                    vodLoading || isSyncing -> LoadingVod(stringResource(R.string.vod_loading_movies))
+                    // Not a confirmed-empty library (still answering, or rows exist and the
+                    // shelves are building): show progress, never "no films".
+                    vodLoading || isSyncing || hasMovies != false -> LoadingVod(stringResource(R.string.vod_loading_movies))
                     hasSources -> EmptyVod(stringResource(R.string.vod_no_movies), stringResource(R.string.vod_no_movies_provider))
                     else -> EmptyVod(stringResource(R.string.vod_no_movies), stringResource(R.string.vod_no_movies_add))
                 }
@@ -205,6 +208,7 @@ fun SeriesScreen(
     // Saveable: opening a title and coming back must land in the same category, not the shelves.
     var browseCategory by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val hasSeries by viewModel.hasSeries.collectAsState()
     val hasContent = resume.isNotEmpty() || recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
 
     Column(Modifier.fillMaxSize()) {
@@ -228,7 +232,7 @@ fun SeriesScreen(
             when {
                 browseCategory != null -> SeriesCategoryGrid(categorySeries, onOpenSeries)
                 !hasContent -> when {
-                    vodLoading || isSyncing -> LoadingVod(stringResource(R.string.vod_loading_shows))
+                    vodLoading || isSyncing || hasSeries != false -> LoadingVod(stringResource(R.string.vod_loading_shows))
                     hasSources -> EmptyVod(stringResource(R.string.vod_no_shows), stringResource(R.string.vod_no_shows_provider))
                     else -> EmptyVod(stringResource(R.string.vod_no_shows), stringResource(R.string.vod_no_shows_add))
                 }
@@ -491,18 +495,24 @@ internal fun ContinueWatchingRow(
     val context = LocalContext.current
     val graph = remember { ServiceLocator.get(context) }
     val scope = rememberCoroutineScope()
+    // Hidden the instant "Remove" is tapped; the database delete (and the list re-reading it) can
+    // lag behind a running sync, which made the card seem to ignore the tap.
+    var removed by remember { mutableStateOf(emptySet<String>()) }
+    val shown = remember(items, removed) { items.filterNot { it.mediaKey in removed } }
+    if (shown.isEmpty()) return
     Column(Modifier.fillMaxWidth()) {
         SectionHeader(stringResource(R.string.vod_continue_watching))
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(items, key = { it.mediaKey }) { item ->
+            items(shown, key = { it.mediaKey }) { item ->
                 ResumeCard(
                     item,
                     onClick = { onResume(item.mediaKey, item.streamUrl, item.title) },
                     // Forgetting the saved position drops it from this row (it's a live query).
                     onRemove = {
+                        removed = removed + item.mediaKey
                         scope.launch {
                             graph.playbackPositions.delete(graph.settings.activeProfileId.value, item.mediaKey)
                         }
