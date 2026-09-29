@@ -571,10 +571,11 @@ interface SeriesDao {
     )
     fun searchFts(match: String, limit: Int = 200): Flow<List<Series>>
 
-    /** Newest-first, for the "Recently Added" home row. Reactive so it fills in as VOD sync lands. */
+    /** The show an episode belongs to, by the provider's own series id. */
     @Query("SELECT * FROM series WHERE sourceId = :sourceId AND seriesId = :seriesId LIMIT 1")
     suspend fun byProviderId(sourceId: Long, seriesId: String): Series?
 
+    /** Newest-first, for the "Recently Added" home row. Reactive so it fills in as VOD sync lands. */
     @Query("SELECT * FROM series ORDER BY addedMillis DESC LIMIT :limit")
     fun observeRecentlyAdded(limit: Int): Flow<List<Series>>
 

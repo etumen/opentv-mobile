@@ -64,6 +64,7 @@ object VodTitleCleaner {
      */
     private val SERVICE_CODES: Set<String> = setOf(
         "NF",                    // Netflix
+        "TOP",                   // provider "top picks" shelf prefix ("TOP - Title")
         "AMZ", "AMZN", "PMV",    // Amazon Prime Video
         "DSNY", "DNSP", "D+",    // Disney+
         "HBO", "HMAX", "MAX",    // HBO / Max

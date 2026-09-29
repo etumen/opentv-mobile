@@ -5,6 +5,8 @@
  */
 package app.opentv.ui.vod
 
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.statusBarsPadding
 import app.opentv.ui.LocalLayoutClass
 import app.opentv.ui.LayoutClass
@@ -98,6 +100,7 @@ fun MovieDetailScreen(
     onPlayUrl: (key: String, url: String, title: String) -> Unit,
     onOpenMovie: (Movie) -> Unit,
     onOpenPerson: (String) -> Unit,
+    onBack: () -> Unit = {},
     viewModel: VodViewModel = viewModel(),
 ) {
     var movie by remember(movieId) { mutableStateOf<Movie?>(null) }
@@ -129,7 +132,7 @@ fun MovieDetailScreen(
 
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "header") {
-            DetailBackdrop(title = m.displayTitle, backdropUrl = m.backdropUrl, posterUrl = m.posterUrl, meta = movieMeta(m)) {
+            DetailBackdrop(title = m.displayTitle, backdropUrl = m.backdropUrl, posterUrl = m.posterUrl, meta = movieMeta(m), onBack = onBack) {
                 DetailButton(
                     icon = Icons.Filled.PlayArrow,
                     label = stringResource(if (resumeExists) R.string.vod_resume else R.string.vod_watch_now),
@@ -288,6 +291,7 @@ fun SeriesDetailScreen(
     onPlayEpisode: (mediaKey: String, url: String, title: String) -> Unit,
     onOpenSeries: (Series) -> Unit,
     onOpenPerson: (String) -> Unit,
+    onBack: () -> Unit = {},
     viewModel: VodViewModel = viewModel(),
 ) {
     var series by remember(seriesId) { mutableStateOf<Series?>(null) }
@@ -328,7 +332,7 @@ fun SeriesDetailScreen(
 
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "header") {
-            DetailBackdrop(title = s.displayTitle, backdropUrl = s.backdropUrl, posterUrl = s.posterUrl, meta = seriesMeta(s)) {
+            DetailBackdrop(title = s.displayTitle, backdropUrl = s.backdropUrl, posterUrl = s.posterUrl, meta = seriesMeta(s), onBack = onBack) {
                 DetailButton(
                     icon = if (s.favourite) Icons.Filled.Star else Icons.Outlined.StarOutline,
                     label = stringResource(if (s.favourite) R.string.common_remove_favourite else R.string.common_favourite),
@@ -428,10 +432,11 @@ private fun DetailBackdrop(
     backdropUrl: String?,
     posterUrl: String?,
     meta: String,
+    onBack: () -> Unit = {},
     actions: @Composable RowScope.() -> Unit,
 ) {
     if (LocalLayoutClass.current == LayoutClass.PHONE) {
-        PhoneDetailHeader(title, backdropUrl, posterUrl, meta, actions)
+        PhoneDetailHeader(title, backdropUrl, posterUrl, meta, onBack, actions)
         return
     }
     Box(
@@ -721,6 +726,7 @@ private fun PhoneDetailHeader(
     backdropUrl: String?,
     posterUrl: String?,
     meta: String,
+    onBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
@@ -741,6 +747,18 @@ private fun PhoneDetailHeader(
                     Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.15f), 1f to Color.Black.copy(alpha = 0.9f)),
                 ),
             )
+            // Phones have no remote Back key in reach — give the page its own way out.
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(8.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f)),
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+            }
             Column(
                 Modifier.align(Alignment.BottomStart).statusBarsPadding().padding(16.dp),
             ) {

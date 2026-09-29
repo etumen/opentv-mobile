@@ -172,10 +172,11 @@ fun VodPlayerScreen(
 
     fun reveal() { controlsVisible = true; interaction++ }
 
-    suspend fun savePosition() {
-        val player = controller.player
-        val pos = player.currentPosition
-        val dur = player.duration.takeIf { it > 0 } ?: return
+    suspend fun savePosition(
+        pos: Long = controller.player.currentPosition,
+        duration: Long = controller.player.duration,
+    ) {
+        val dur = duration.takeIf { it > 0 } ?: return
         if (pos > 5_000) {
             graph.playbackPositions.upsert(
                 app.opentv.data.model.PlaybackPosition(
@@ -198,7 +199,14 @@ fun VodPlayerScreen(
         onDispose {
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             view.keepScreenOn = false
-            scope.launch { savePosition() }
+            // Read where we are *before* releasing the player, and save on a scope that outlives
+            // this screen: launching on [scope] and cancelling it on the next line meant the save
+            // on exit never landed, so only the 15-second autosave ever reached the database.
+            val pos = controller.player.currentPosition
+            val dur = controller.player.duration
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.NonCancellable).launch {
+                savePosition(pos, dur)
+            }
             controller.release()
             scope.cancel()
         }

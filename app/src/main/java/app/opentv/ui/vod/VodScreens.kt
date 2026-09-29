@@ -5,6 +5,7 @@
  */
 package app.opentv.ui.vod
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import app.opentv.data.parser.ChannelNameNormalizer
 import androidx.compose.material.icons.filled.Close
 import kotlinx.coroutines.launch
@@ -116,7 +117,8 @@ fun MoviesScreen(
     }
 
     // null = the curated home rows; a category id = that category's full grid.
-    var browseCategory by remember { mutableStateOf<String?>(null) }
+    // Saveable: opening a title and coming back must land in the same category, not the shelves.
+    var browseCategory by rememberSaveable { mutableStateOf<String?>(null) }
 
     val hasContent = resume.isNotEmpty() || recommended.isNotEmpty() ||
         recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
@@ -200,7 +202,8 @@ fun SeriesScreen(
         viewModel.loadHomeFeeds()
     }
 
-    var browseCategory by remember { mutableStateOf<String?>(null) }
+    // Saveable: opening a title and coming back must land in the same category, not the shelves.
+    var browseCategory by rememberSaveable { mutableStateOf<String?>(null) }
 
     val hasContent = resume.isNotEmpty() || recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
 

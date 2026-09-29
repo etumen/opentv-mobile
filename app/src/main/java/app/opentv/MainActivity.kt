@@ -514,6 +514,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
                     },
                     onOpenSeries = { series -> navController.navigate(Routes.seriesDetail(series.id)) },
                     onOpenPerson = { name -> navController.navigate(Routes.person(name)) },
+                    onBack = { navController.popBackStack() },
                 )
             }
 
@@ -539,6 +540,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
                     },
                     onOpenMovie = { movie -> navController.navigate(Routes.movieDetail(movie.id)) },
                     onOpenPerson = { name -> navController.navigate(Routes.person(name)) },
+                    onBack = { navController.popBackStack() },
                 )
             }
 
