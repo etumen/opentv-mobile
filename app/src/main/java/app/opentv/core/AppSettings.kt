@@ -304,6 +304,12 @@ class AppSettings private constructor(context: Context) {
         _recentChannels.value = kept
     }
 
+    fun removeRecentChannels(ids: Collection<Long>) {
+        val kept = _recentChannels.value.filterNot { it in ids }
+        prefs.edit().putString(KEY_RECENT_CHANNELS, kept.joinToString(",")).apply()
+        _recentChannels.value = kept
+    }
+
     /** The last channel played, for boot-to-last-channel. Not a flow — only read once at launch. */
     var lastChannelId: Long
         get() = prefs.getLong(KEY_LAST_CHANNEL, 0L)

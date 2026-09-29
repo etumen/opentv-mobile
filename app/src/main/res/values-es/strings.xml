@@ -513,4 +513,5 @@
     <string name="phone_sort_provider">Orden del proveedor</string>
     <string name="phone_sort_name">A–Z</string>
     <string name="phone_sort_number">Por número</string>
+    <string name="phone_remove_recent">Quitar de Recientes</string>
 </resources>

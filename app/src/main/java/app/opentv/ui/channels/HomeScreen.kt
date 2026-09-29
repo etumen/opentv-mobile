@@ -777,6 +777,15 @@ fun HomeScreen(
                         channelMenu = null
                         requestLive(channel)
                     }
+                    // Right under Watch — at the bottom it sat below the whole schedule, out of sight.
+                    // In Recent, take it off the list (every quality variant, since any may be the one
+                    // that was played). The channel itself stays everywhere else.
+                    if (recentsOnly) {
+                        RecordActionRow(stringResource(R.string.phone_remove_recent)) {
+                            graph.settings.removeRecentChannels(menuRow.variants.map { it.id } + menuRow.primary.id)
+                            channelMenu = null
+                        }
+                    }
                     RecordActionRow(stringResource(R.string.guide_open_external)) {
                         channelMenu = null
                         recordScope.launch {
