@@ -63,6 +63,7 @@ import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.model.StremioStream
 import app.opentv.data.parser.displayTitle
+import app.opentv.data.parser.sourceTag
 import app.opentv.ui.VodViewModel
 import coil.compose.AsyncImage
 import androidx.compose.ui.window.Dialog
@@ -704,6 +705,7 @@ private fun LoadingDetail() {
 /** "2021  ·  ★ 7.8  ·  1h 52m" — each part dropped when the provider didn't give it. Genre is shown
  *  separately as its own chip row (see [DetailInfo]), so it stays off this line. */
 private fun movieMeta(m: Movie): String = listOfNotNull(
+    m.sourceTag,
     m.year?.toString(),
     m.rating?.takeIf { it > 0.0 }?.let { "★ ${formatRating(it)}" },
     m.durationSeconds?.takeIf { it > 0 }?.let { formatRuntime(it) },
@@ -711,6 +713,7 @@ private fun movieMeta(m: Movie): String = listOfNotNull(
 
 /** "2021  ·  ★ 8.1" — series carry no runtime; genre is its own chip row. */
 private fun seriesMeta(s: Series): String = listOfNotNull(
+    s.sourceTag,
     s.year?.toString(),
     s.rating?.takeIf { it > 0.0 }?.let { "★ ${formatRating(it)}" },
 ).joinToString("  ·  ")

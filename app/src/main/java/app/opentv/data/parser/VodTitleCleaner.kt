@@ -119,11 +119,24 @@ object VodTitleCleaner {
      * trusted before a `|` or inside brackets — never a bare `:`/`-`, where it is far more likely to
      * be the start of a real title.
      */
-    private fun stripLeadingPrefix(input: String): String {
+    private fun stripLeadingPrefix(input: String): String = peelPrefix(input).first
+
+    /**
+     * The tags [clean] peels off the front of a raw title — language/country (`EN`, `DE`), service
+     * (`NF`, `AMZ`) and quality (`4K`) — in order, upper-cased. `4K-EN - The Matrix` gives
+     * `[4K, EN]`. Shown as a badge beside the clean title, because on multi-country providers it is
+     * the only way to tell the Spanish copy of a film from the German one.
+     */
+    fun prefixTags(raw: String): List<String> =
+        peelPrefix(ChannelNameNormalizer.foldSuperscripts(raw).trim()).second
+
+    private fun peelPrefix(input: String): Pair<String, List<String>> {
         var s = input
+        val tags = ArrayList<String>(2)
         while (true) {
             val bracket = BRACKET_TAG.find(s)
             if (bracket != null && isPrefixTag(bracket.groupValues[1], bracketed = true, separator = null)) {
+                tags += bracket.groupValues[1].uppercase()
                 s = s.substring(bracket.range.last + 1)
                 continue
             }
@@ -131,6 +144,7 @@ object VodTitleCleaner {
             // curated service marks are trusted here, never a generic code.
             val plus = PLUS_TAG.find(s)
             if (plus != null && plus.groupValues[1].uppercase() in SERVICE_CODES) {
+                tags += plus.groupValues[1].uppercase()
                 s = s.substring(plus.range.last + 1)
                 continue
             }
@@ -138,10 +152,11 @@ object VodTitleCleaner {
             if (bare != null &&
                 isPrefixTag(bare.groupValues[1], bracketed = false, separator = bare.groupValues[2].firstOrNull())
             ) {
+                tags += bare.groupValues[1].uppercase()
                 s = s.substring(bare.range.last + 1)
                 continue
             }
-            return s
+            return s to tags
         }
     }
 
@@ -196,3 +211,9 @@ val Movie.displayTitle: String get() = VodTitleCleaner.clean(name)
 
 /** The clean, display-ready title for a series. */
 val Series.displayTitle: String get() = VodTitleCleaner.clean(name)
+
+/** The provider's origin tags stripped from the title (`EN 4K`, `DE`, `NF`), or null if none. */
+val Movie.sourceTag: String? get() = VodTitleCleaner.prefixTags(name).joinToString(" ").ifEmpty { null }
+
+/** See [Movie.sourceTag]. */
+val Series.sourceTag: String? get() = VodTitleCleaner.prefixTags(name).joinToString(" ").ifEmpty { null }

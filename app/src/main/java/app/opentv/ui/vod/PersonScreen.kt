@@ -35,6 +35,7 @@ import app.opentv.R
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.parser.displayTitle
+import app.opentv.data.parser.sourceTag
 import app.opentv.data.repo.PersonTitle
 import app.opentv.ui.VodViewModel
 
@@ -93,6 +94,7 @@ fun PersonScreen(
                             when (item) {
                                 is PersonTitle.MovieItem -> PosterCard(
                                     title = item.movie.displayTitle,
+                                    tagBadge = item.movie.sourceTag,
                                     posterUrl = item.movie.posterUrl,
                                     subtitle = item.movie.year?.toString(),
                                     rating = item.movie.rating,
@@ -100,6 +102,7 @@ fun PersonScreen(
                                 )
                                 is PersonTitle.SeriesItem -> PosterCard(
                                     title = item.series.displayTitle,
+                                    tagBadge = item.series.sourceTag,
                                     posterUrl = item.series.posterUrl,
                                     subtitle = item.series.year?.toString(),
                                     rating = item.series.rating,

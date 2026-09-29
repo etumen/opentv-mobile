@@ -5,6 +5,22 @@
  */
 package app.opentv.ui.vod
 
+import app.opentv.ui.LayoutClass
+import app.opentv.ui.LocalLayoutClass
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,17 +37,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,6 +70,7 @@ import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.model.Source
 import app.opentv.data.parser.displayTitle
+import app.opentv.data.parser.sourceTag
 import app.opentv.ui.VodViewModel
 import coil.compose.AsyncImage
 
@@ -245,6 +258,7 @@ private fun MovieCategoryGrid(movies: List<Movie>, viewModel: VodViewModel, onOp
                 }
             PosterCard(
                 title = group.primary.displayTitle,
+                tagBadge = group.primary.sourceTag,
                 posterUrl = group.primary.posterUrl,
                 subtitle = group.primary.year?.toString(),
                 rating = group.primary.rating,
@@ -269,6 +283,7 @@ private fun SeriesCategoryGrid(series: List<Series>, onOpenSeries: (Series) -> U
         gridItems(series, key = { it.id }) { item ->
             PosterCard(
                 title = item.displayTitle,
+                tagBadge = item.sourceTag,
                 posterUrl = item.posterUrl,
                 subtitle = item.year?.toString(),
                 rating = item.rating,
@@ -292,6 +307,7 @@ internal fun MoviePosterRow(title: String, movies: List<Movie>, onOpenMovie: (Mo
             items(movies, key = { it.id }) { movie ->
                 PosterCard(
                     title = movie.displayTitle,
+                    tagBadge = movie.sourceTag,
                     posterUrl = movie.posterUrl,
                     subtitle = movie.year?.toString(),
                     rating = movie.rating,
@@ -314,6 +330,7 @@ internal fun SeriesPosterRow(title: String, series: List<Series>, onOpenSeries: 
             items(series, key = { it.id }) { item ->
                 PosterCard(
                     title = item.displayTitle,
+                    tagBadge = item.sourceTag,
                     posterUrl = item.posterUrl,
                     subtitle = item.year?.toString(),
                     rating = item.rating,
@@ -353,6 +370,8 @@ internal fun PosterCard(
     rating: Double? = null,
     qualityBadge: String? = null,
     progress: Float? = null,
+    /** Origin tag from the raw title (`EN`, `DE 4K`, `NF`) — which country/service copy this is. */
+    tagBadge: String? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "posterScale")
@@ -394,6 +413,9 @@ internal fun PosterCard(
                     highlight = true,
                     modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
                 )
+            }
+            tagBadge?.let {
+                Badge(text = it, modifier = Modifier.align(Alignment.TopStart).padding(6.dp))
             }
             progress?.let {
                 LinearProgressIndicator(
@@ -521,6 +543,10 @@ private fun CategoryChips(
     onSelectHome: () -> Unit,
     onSelectCategory: (String) -> Unit,
 ) {
+    if (LocalLayoutClass.current == LayoutClass.PHONE) {
+        PhoneCategoryPicker(entries, selected, onSelectHome, onSelectCategory)
+        return
+    }
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -537,6 +563,86 @@ private fun CategoryChips(
         item(key = "all") { Chip(stringResource(R.string.vod_all), selected == null, onSelectHome) }
         items(entries, key = { it.first }) { (id, name) ->
             Chip(name, selected == id) { onSelectCategory(id) }
+        }
+    }
+}
+
+/**
+ * Phones: a "Categories" button opening a searchable bottom sheet (film libraries run to hundreds of
+ * categories — scrolling a chip strip sideways to find one doesn't work by touch), plus "All".
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PhoneCategoryPicker(
+    entries: List<Pair<String, String>>,
+    selected: String?,
+    onSelectHome: () -> Unit,
+    onSelectCategory: (String) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    val selectedName = entries.firstOrNull { it.first == selected }?.second
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = selectedName != null,
+            onClick = { open = true },
+            label = {
+                Text(
+                    selectedName ?: stringResource(R.string.vod_categories),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 220.dp),
+                )
+            },
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+        )
+        FilterChip(selected = selected == null, onClick = onSelectHome, label = { Text(stringResource(R.string.vod_all)) })
+    }
+    if (open) {
+        ModalBottomSheet(
+            onDismissRequest = { open = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            var filter by remember { mutableStateOf("") }
+            val shown = remember(entries, filter) {
+                if (filter.isBlank()) entries else entries.filter { it.second.contains(filter.trim(), ignoreCase = true) }
+            }
+            Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
+                OutlinedTextField(
+                    value = filter,
+                    onValueChange = { filter = it },
+                    placeholder = { Text(stringResource(R.string.phone_live_filter_categories)) },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+                    if (filter.isBlank()) {
+                        item(key = "all") {
+                            ListItem(
+                                headlineContent = { Text(stringResource(R.string.vod_all)) },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = if (selected == null) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceContainerLow,
+                                ),
+                                modifier = Modifier.fillMaxWidth().clickable { open = false; onSelectHome() },
+                            )
+                        }
+                    }
+                    items(shown, key = { it.first }) { (id, name) ->
+                        ListItem(
+                            headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            colors = ListItemDefaults.colors(
+                                containerColor = if (selected == id) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceContainerLow,
+                            ),
+                            modifier = Modifier.fillMaxWidth().clickable { open = false; onSelectCategory(id) },
+                        )
+                    }
+                }
+            }
         }
     }
 }

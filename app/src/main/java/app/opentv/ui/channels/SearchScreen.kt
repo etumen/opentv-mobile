@@ -69,6 +69,7 @@ import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.model.shownName
 import app.opentv.data.parser.displayTitle
+import app.opentv.data.parser.sourceTag
 import app.opentv.ui.ChannelsViewModel
 import app.opentv.ui.VodViewModel
 import coil.compose.AsyncImage
@@ -154,7 +155,7 @@ fun SearchScreen(
                         if (movieResults.isNotEmpty()) {
                             item { SectionHeader(stringResource(R.string.nav_movies)) }
                             items(movieResults, key = { "m${it.id}" }) { movie ->
-                                VodResultRow(movie.displayTitle, movie.posterUrl, movie.year?.toString()) {
+                                VodResultRow(movie.displayTitle, movie.posterUrl, listOfNotNull(movie.sourceTag, movie.year?.toString()).joinToString("  ·  ")) {
                                     onPlayMovie(movie)
                                 }
                             }
@@ -162,7 +163,7 @@ fun SearchScreen(
                         if (seriesResults.isNotEmpty()) {
                             item { SectionHeader(stringResource(R.string.nav_shows)) }
                             items(seriesResults, key = { "s${it.id}" }) { show ->
-                                VodResultRow(show.displayTitle, show.posterUrl, show.year?.toString()) {
+                                VodResultRow(show.displayTitle, show.posterUrl, listOfNotNull(show.sourceTag, show.year?.toString()).joinToString("  ·  ")) {
                                     onOpenSeries(show)
                                 }
                             }
@@ -197,8 +198,25 @@ private fun PhoneSearchScreen(
     val showChannels = scope == "all" || scope == "channels"
     val showMovies = scope == "all" || scope == "movies"
     val showSeries = scope == "all" || scope == "series"
+
+    // Origin tags on the film/series results (EN, ES, DE, 4K, NF…), most common first, as quick
+    // filters — the way to pick your language out of "a thousand Matrixes".
+    var tag by rememberSaveable { mutableStateOf<String?>(null) }
+    val movieTags = remember(movieResults) { movieResults.associate { it.id to it.sourceTag.orEmpty().split(' ') } }
+    val seriesTags = remember(seriesResults) { seriesResults.associate { it.id to it.sourceTag.orEmpty().split(' ') } }
+    val tagOptions = remember(movieTags, seriesTags, showMovies, showSeries) {
+        buildList {
+            if (showMovies) movieTags.values.forEach { addAll(it) }
+            if (showSeries) seriesTags.values.forEach { addAll(it) }
+        }.filter { it.isNotBlank() }.groupingBy { it }.eachCount()
+            .entries.sortedByDescending { it.value }.map { it.key }
+    }
+    LaunchedEffect(tagOptions) { if (tag != null && tag !in tagOptions) tag = null }
+    val movies = if (tag == null) movieResults else movieResults.filter { tag in movieTags[it.id].orEmpty() }
+    val shows = if (tag == null) seriesResults else seriesResults.filter { tag in seriesTags[it.id].orEmpty() }
+
     val anyResults = (showChannels && channelResults.isNotEmpty()) ||
-        (showMovies && movieResults.isNotEmpty()) || (showSeries && seriesResults.isNotEmpty())
+        (showMovies && movies.isNotEmpty()) || (showSeries && shows.isNotEmpty())
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
@@ -254,6 +272,20 @@ private fun PhoneSearchScreen(
                 FilterChip(selected = scope == key, onClick = { scope = key }, label = { Text(label) })
             }
         }
+        if (tagOptions.size > 1 && query.trim().length >= 2) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                tagOptions.forEach { t ->
+                    FilterChip(
+                        selected = tag == t,
+                        onClick = { tag = if (tag == t) null else t },
+                        label = { Text(t) },
+                    )
+                }
+            }
+        }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 query.isBlank() -> Hint(stringResource(R.string.search_start_hint))
@@ -272,16 +304,16 @@ private fun PhoneSearchScreen(
                             SearchResultRow(row = row, onClick = { onPlayChannel(row.primary) })
                         }
                     }
-                    if (showMovies && movieResults.isNotEmpty()) {
+                    if (showMovies && movies.isNotEmpty()) {
                         if (scope == "all") item { SectionHeader(stringResource(R.string.nav_movies)) }
-                        items(movieResults, key = { "m${it.id}" }) { movie ->
-                            VodResultRow(movie.displayTitle, movie.posterUrl, movie.year?.toString()) { onPlayMovie(movie) }
+                        items(movies, key = { "m${it.id}" }) { movie ->
+                            VodResultRow(movie.displayTitle, movie.posterUrl, listOfNotNull(movie.sourceTag, movie.year?.toString()).joinToString("  ·  ")) { onPlayMovie(movie) }
                         }
                     }
-                    if (showSeries && seriesResults.isNotEmpty()) {
+                    if (showSeries && shows.isNotEmpty()) {
                         if (scope == "all") item { SectionHeader(stringResource(R.string.nav_shows)) }
-                        items(seriesResults, key = { "s${it.id}" }) { show ->
-                            VodResultRow(show.displayTitle, show.posterUrl, show.year?.toString()) { onOpenSeries(show) }
+                        items(shows, key = { "s${it.id}" }) { show ->
+                            VodResultRow(show.displayTitle, show.posterUrl, listOfNotNull(show.sourceTag, show.year?.toString()).joinToString("  ·  ")) { onOpenSeries(show) }
                         }
                     }
                 }
