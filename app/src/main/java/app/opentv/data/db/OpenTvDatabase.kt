@@ -20,6 +20,7 @@ import app.opentv.data.model.EpgFeed
 import app.opentv.data.model.Episode
 import app.opentv.data.model.LiveStreamFormat
 import app.opentv.data.model.Movie
+import app.opentv.data.model.Download
 import app.opentv.data.model.MovieFts
 import app.opentv.data.model.SeriesFts
 import app.opentv.data.model.PlaybackPosition
@@ -74,8 +75,9 @@ class Converters {
         Reminder::class,
         MovieFts::class,
         SeriesFts::class,
+        Download::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -94,6 +96,7 @@ abstract class OpenTvDatabase : RoomDatabase() {
     abstract fun recordings(): RecordingDao
     abstract fun seriesRules(): SeriesRuleDao
     abstract fun reminders(): ReminderDao
+    abstract fun downloads(): DownloadDao
 
     companion object {
         /**
@@ -300,6 +303,14 @@ abstract class OpenTvDatabase : RoomDatabase() {
             }
         }
 
+        /** 12 → 13: the Downloads tab's table (films/episodes saved for offline viewing). */
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `downloads` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mediaKey` TEXT NOT NULL, `kind` TEXT NOT NULL, `title` TEXT NOT NULL, `posterUrl` TEXT, `tag` TEXT, `seriesTitle` TEXT, `season` INTEGER, `episode` INTEGER, `sourceUrl` TEXT NOT NULL, `systemId` INTEGER NOT NULL, `createdMillis` INTEGER NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_downloads_mediaKey` ON `downloads` (`mediaKey`)")
+            }
+        }
+
         fun build(context: Context): OpenTvDatabase =
             Room.databaseBuilder(context, OpenTvDatabase::class.java, "opentv.db")
                 // WAL keeps guide writes from blocking guide reads, so a background EPG
@@ -307,7 +318,7 @@ abstract class OpenTvDatabase : RoomDatabase() {
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
                 .addMigrations(
                     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
+                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
                 )
                 /*
                  * Pre-1.0 policy: schema changes drop and rebuild the database. Everything

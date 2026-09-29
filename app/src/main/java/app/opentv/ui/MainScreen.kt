@@ -72,6 +72,8 @@ import app.opentv.data.model.Recording
 import app.opentv.data.model.Series
 import app.opentv.ui.channels.HomeScreen
 import app.opentv.ui.recordings.RecordingsScreen
+import app.opentv.ui.downloads.DownloadsScreen
+import androidx.compose.material.icons.filled.Download
 import app.opentv.ui.vod.MoviesScreen
 import app.opentv.ui.vod.SeriesScreen
 
@@ -86,6 +88,7 @@ enum class Tab(val labelRes: Int, val icon: ImageVector) {
     MOVIES(R.string.nav_movies, Icons.Filled.Movie),
     SHOWS(R.string.nav_shows, Icons.Filled.Tv),
     RECORDINGS(R.string.nav_recordings, Icons.Filled.FiberManualRecord),
+    DOWNLOADS(R.string.nav_downloads, Icons.Filled.Download),
 }
 
 private val RAIL_COLLAPSED = 76.dp
@@ -124,6 +127,7 @@ fun MainScreen(
             if (moviesEnabled) add(Tab.MOVIES)
             if (seriesEnabled) add(Tab.SHOWS)
             add(Tab.RECORDINGS)
+            add(Tab.DOWNLOADS)
         }
     }
     // The default/home tab is the first visible one — Live TV normally, otherwise the first type
@@ -188,6 +192,8 @@ fun MainScreen(
                 isSyncing = isSyncing,
             )
             Tab.RECORDINGS -> RecordingsScreen(onPlay = onPlayRecording)
+            // Saved files play through the VOD player under the same media key, so resume works.
+            Tab.DOWNLOADS -> DownloadsScreen(onPlay = onResume)
         }
     }
 
@@ -220,7 +226,15 @@ fun MainScreen(
                         selected = tab == t,
                         onClick = { tab = t },
                         icon = { Icon(t.icon, contentDescription = null) },
-                        label = { Text(stringResource(t.labelRes), maxLines = 1) },
+                        // Five tabs on a narrow phone: the smaller label keeps "Grabaciones" whole.
+                        label = {
+                            Text(
+                                stringResource(t.labelRes),
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
                     )
                 }
             }

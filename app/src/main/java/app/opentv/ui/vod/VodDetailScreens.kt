@@ -5,6 +5,9 @@
  */
 package app.opentv.ui.vod
 
+import androidx.compose.foundation.layout.statusBarsPadding
+import app.opentv.ui.LocalLayoutClass
+import app.opentv.ui.LayoutClass
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,6 +62,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.opentv.R
 import app.opentv.data.model.Episode
+import app.opentv.data.model.Download
+import app.opentv.core.ServiceLocator
+import app.opentv.ui.downloads.DownloadControl
+import app.opentv.ui.downloads.startMessage
+import app.opentv.data.repo.DownloadRepository
+import app.opentv.ui.downloads.KIND_EPISODE
+import app.opentv.ui.downloads.KIND_MOVIE
+import android.widget.Toast
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.model.StremioStream
@@ -68,7 +83,6 @@ import app.opentv.ui.VodViewModel
 import coil.compose.AsyncImage
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * A film's cinematic detail page: a backdrop hero with title, meta and Watch/Resume + favourite
@@ -128,6 +142,14 @@ fun MovieDetailScreen(
                     viewModel.toggleMovieFavourite(m)
                     movie = m.copy(favourite = !m.favourite)
                 }
+                // Save for offline viewing; the Downloads tab lists it.
+                DownloadControl(mediaKey = "movie:${m.id}", buildDownload = {
+                    Download(
+                        mediaKey = "movie:${m.id}", kind = KIND_MOVIE, title = m.displayTitle,
+                        posterUrl = m.posterUrl, tag = m.sourceTag, sourceUrl = m.streamUrl,
+                        systemId = 0, createdMillis = 0,
+                    )
+                })
                 // Only when the user has add-ons set up — queries them for this film's streams.
                 if (hasAddons) {
                     DetailButton(
@@ -268,6 +290,10 @@ fun SeriesDetailScreen(
     viewModel: VodViewModel = viewModel(),
 ) {
     var series by remember(seriesId) { mutableStateOf<Series?>(null) }
+    val context = LocalContext.current
+    val graph = remember { ServiceLocator.get(context) }
+    val downloadDao = remember { graph.database.downloads() }
+    val downloadScope = rememberCoroutineScope()
     var moreLike by remember(seriesId) { mutableStateOf<List<Series>>(emptyList()) }
     val favFocus = remember { FocusRequester() }
 
@@ -335,10 +361,36 @@ fun SeriesDetailScreen(
             seasons.forEach { (season, eps) ->
                 item(key = "season:$season") {
                     Spacer(Modifier.height(8.dp))
-                    SectionHeader(stringResource(R.string.vod_season, season))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) { SectionHeader(stringResource(R.string.vod_season, season)) }
+                        // Queue every episode of the season not already saved.
+                        TextButton(
+                            onClick = {
+                                downloadScope.launch {
+                                    val repo = graph.downloadRepository
+                                    // Episode by episode; stop at the first that won't fit.
+                                    var last: DownloadRepository.Start = DownloadRepository.Start.Started
+                                    for (ep in eps) {
+                                        val d = episodeDownload(s, ep)
+                                        if (downloadDao.byKey(d.mediaKey) != null) continue
+                                        last = repo.enqueue(d, "OpenTV/0.1 (Android)")
+                                        if (last is DownloadRepository.Start.NoSpace) break
+                                    }
+                                    Toast.makeText(context, startMessage(context, s.displayTitle, last), Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            modifier = Modifier.padding(end = 16.dp),
+                        ) {
+                            Icon(Icons.Filled.Download, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.dl_season))
+                        }
+                    }
                 }
                 items(eps, key = { it.id }) { ep ->
-                    EpisodeRow(ep, onPlayEpisode)
+                    EpisodeRow(ep, onPlayEpisode, trailing = {
+                        DownloadControl(mediaKey = "ep:${ep.id}", buildDownload = { episodeDownload(s, ep) }, compact = true)
+                    })
                 }
             }
         }
@@ -374,6 +426,10 @@ private fun DetailBackdrop(
     meta: String,
     actions: @Composable RowScope.() -> Unit,
 ) {
+    if (LocalLayoutClass.current == LayoutClass.PHONE) {
+        PhoneDetailHeader(title, backdropUrl, posterUrl, meta, actions)
+        return
+    }
     Box(
         Modifier
             .fillMaxWidth()
@@ -650,9 +706,69 @@ private fun DetailButton(
     }
 }
 
+/**
+ * The phone take on [DetailBackdrop]: art with the title over it, then the actions underneath in
+ * rows that wrap — side by side with a poster they ran off a portrait screen (Download included).
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun PhoneDetailHeader(
+    title: String,
+    backdropUrl: String?,
+    posterUrl: String?,
+    meta: String,
+    actions: @Composable RowScope.() -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            AsyncImage(
+                model = backdropUrl ?: posterUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+            Box(
+                Modifier.matchParentSize().background(
+                    Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.15f), 1f to Color.Black.copy(alpha = 0.9f)),
+                ),
+            )
+            Column(
+                Modifier.align(Alignment.BottomStart).statusBarsPadding().padding(16.dp),
+            ) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (meta.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(meta, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
+                }
+            }
+        }
+        androidx.compose.foundation.layout.FlowRow(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = actions,
+        )
+    }
+}
+
 /** One episode row: season/episode marker, title, and a focus highlight; plays on click. */
 @Composable
-private fun EpisodeRow(ep: Episode, onPlay: (mediaKey: String, url: String, title: String) -> Unit) {
+private fun EpisodeRow(
+    ep: Episode,
+    onPlay: (mediaKey: String, url: String, title: String) -> Unit,
+    trailing: @Composable () -> Unit = {},
+) {
     var focused by remember { mutableStateOf(false) }
     Row(
         Modifier
@@ -685,9 +801,18 @@ private fun EpisodeRow(ep: Episode, onPlay: (mediaKey: String, url: String, titl
             style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
+        trailing()
     }
 }
+
+/** The Downloads-tab entry for one episode of [series]. */
+private fun episodeDownload(series: Series, ep: Episode) = Download(
+    mediaKey = "ep:${ep.id}", kind = KIND_EPISODE, title = ep.title, posterUrl = ep.stillUrl ?: series.posterUrl,
+    tag = series.sourceTag, seriesTitle = series.displayTitle, season = ep.season, episode = ep.episodeNumber,
+    sourceUrl = ep.streamUrl, systemId = 0, createdMillis = 0,
+)
 
 @Composable
 private fun LoadingDetail() {

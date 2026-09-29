@@ -413,6 +413,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
             composable(Routes.SEARCH) { entry ->
                 SearchScreen(
                     initialScope = entry.arguments?.getString("scope") ?: "all",
+                    onOpenMovie = { movie -> navController.navigate(Routes.movieDetail(movie.id)) },
                     onPlayChannel = { channel -> navController.navigate(Routes.player(channel.id)) },
                     onPlayMovie = { movie ->
                         navController.navigate(

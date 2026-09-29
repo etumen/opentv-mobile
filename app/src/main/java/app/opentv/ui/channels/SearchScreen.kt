@@ -91,11 +91,13 @@ fun SearchScreen(
     onOpenSeries: (Series) -> Unit,
     onBack: () -> Unit,
     initialScope: String = "all",
+    /** Phones open the film's page (play, download, favourite) instead of playing straight away. */
+    onOpenMovie: (Movie) -> Unit = onPlayMovie,
     viewModel: ChannelsViewModel = viewModel(),
     vodViewModel: VodViewModel = viewModel(),
 ) {
     if (LocalLayoutClass.current == LayoutClass.PHONE) {
-        PhoneSearchScreen(onPlayChannel, onPlayMovie, onOpenSeries, onBack, initialScope, viewModel, vodViewModel)
+        PhoneSearchScreen(onPlayChannel, onOpenMovie, onOpenSeries, onBack, initialScope, viewModel, vodViewModel)
         return
     }
     var query by remember { mutableStateOf("") }

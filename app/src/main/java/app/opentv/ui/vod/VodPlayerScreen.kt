@@ -207,9 +207,11 @@ fun VodPlayerScreen(
     LaunchedEffect(mediaKey) {
         val resumeFrom = graph.playbackPositions.get(settings.activeProfileId.value, mediaKey)
             ?.takeIf { !it.isFinished }?.positionMillis ?: 0L
+        // Downloaded? Play the file — works with no signal, and spares the provider connection.
+        val url = graph.downloadRepository.localFile(mediaKey) ?: streamUrl
         controller.play(
             PlayerController.Request(
-                url = streamUrl,
+                url = url,
                 title = title,
                 userAgent = userAgent,
                 startPositionMillis = resumeFrom,

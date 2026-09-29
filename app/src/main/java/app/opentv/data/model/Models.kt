@@ -513,3 +513,31 @@ data class MovieFts(val name: String)
 @androidx.room.Fts4(contentEntity = Series::class, tokenizer = androidx.room.FtsOptions.TOKENIZER_UNICODE61)
 @Entity(tableName = "series_fts")
 data class SeriesFts(val name: String)
+
+/**
+ * A film or episode saved to the device for offline viewing. The bytes are fetched by Android's
+ * system DownloadManager ([systemId]) — resumable, survives the app being killed, shows its own
+ * notification — so this row only holds what the Downloads tab needs to list and play it. Live
+ * progress and state are read from DownloadManager, not stored here.
+ */
+@Entity(tableName = "downloads", indices = [Index(value = ["mediaKey"], unique = true)])
+data class Download(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Same key playback positions use ("movie:12", "ep:34"), so resume carries over offline. */
+    val mediaKey: String,
+    /** "MOVIE" or "EPISODE". */
+    val kind: String,
+    val title: String,
+    val posterUrl: String?,
+    /** Origin tag from the provider title (ES, EN 4K…), shown next to the title. */
+    val tag: String?,
+    /** For episodes: the show they belong to, and where in it. */
+    val seriesTitle: String? = null,
+    val season: Int? = null,
+    val episode: Int? = null,
+    /** The provider URL it was downloaded from. */
+    val sourceUrl: String,
+    /** DownloadManager's id for the transfer. */
+    val systemId: Long,
+    val createdMillis: Long,
+)

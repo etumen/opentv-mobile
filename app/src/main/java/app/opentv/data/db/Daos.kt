@@ -5,6 +5,7 @@
  */
 package app.opentv.data.db
 
+import app.opentv.data.model.Download
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -831,3 +832,18 @@ interface ReminderDao {
 
 /** Titles the derived VOD feeds (genre rows, recommendations, more-like-this) work from. */
 const val FEED_SAMPLE = 5000
+
+@Dao
+interface DownloadDao {
+    @Query("SELECT * FROM downloads ORDER BY createdMillis DESC")
+    fun observeAll(): Flow<List<Download>>
+
+    @Query("SELECT * FROM downloads WHERE mediaKey = :mediaKey")
+    suspend fun byKey(mediaKey: String): Download?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(download: Download): Long
+
+    @Query("DELETE FROM downloads WHERE id = :id")
+    suspend fun delete(id: Long)
+}

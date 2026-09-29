@@ -245,14 +245,20 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
 
     val categoryGroups: StateFlow<List<CategoryGroup>> =
         combine(
-            graph.catalogRepository.observeCategories(StreamKind.LIVE),
+            // Film/series syncs rewrite the categories table too; skip re-folding when the live
+            // list itself didn't change.
+            graph.catalogRepository.observeCategories(StreamKind.LIVE).distinctUntilChanged(),
             selectedSource,
         ) { raw, sourceId ->
             // Scope the category rail to the chosen provider, so a second playlist's categories show
             // on their own (cardiodoc's "keep sources separate"); null folds across every provider.
             val scoped = if (sourceId == null) raw else raw.filter { it.sourceId == sourceId }
             foldCategories(scoped)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }
+            // Normalising thousands of category names is real work — keep it off the UI thread,
+            // where it used to freeze typing and taps whenever the categories table changed.
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
      * Folds codec-split provider categories into one logical [CategoryGroup] each — 'UK| GENERAL
@@ -651,12 +657,16 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
      */
     val managerCategoryGroups: StateFlow<List<CategoryGroup>> =
         combine(
-            graph.catalogRepository.observeCategories(StreamKind.LIVE),
+            graph.catalogRepository.observeCategories(StreamKind.LIVE).distinctUntilChanged(),
             managerSelectedSource,
         ) { raw, sourceId ->
             val scoped = if (sourceId == null) raw else raw.filter { it.sourceId == sourceId }
             foldCategories(scoped)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }
+            // Normalising thousands of category names is real work — keep it off the UI thread,
+            // where it used to freeze typing and taps whenever the categories table changed.
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
      * Channels in the selected manager category (and source), grouped into [Row]s exactly like the
