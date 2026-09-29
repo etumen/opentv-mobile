@@ -168,6 +168,8 @@ class CatalogRepository(
 
     fun observeCategories(kind: StreamKind): Flow<List<Category>> = categoryDao.observe(kind)
 
+    fun observeChannelCounts(): Flow<List<app.opentv.data.db.CategoryCount>> = channelDao.observeCountsByCategory()
+
     fun observeMovies(categoryId: String? = null): Flow<List<Movie>> = movieDao.observe(categoryId)
 
     fun observeSeries(categoryId: String? = null): Flow<List<Series>> = seriesDao.observe(categoryId)

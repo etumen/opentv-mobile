@@ -5,6 +5,8 @@
  */
 package app.opentv.ui
 
+import app.opentv.core.AppSettings
+import app.opentv.data.model.shownName
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -301,6 +303,17 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
             if (unlocked) groups else groups.filter { !it.matches(hidden) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Channels per category group (all its folded ids summed), for the category sheet. */
+    val categoryCounts: StateFlow<Map<String, Int>> =
+        combine(filterableCategoryGroups, graph.catalogRepository.observeChannelCounts()) { groups, counts ->
+            val byId = counts.associate { it.categoryId to it.count }
+            groups.associate { g -> g.key to g.ids.sumOf { byId[it] ?: 0 } }
+        }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    val channelSort: StateFlow<AppSettings.ChannelSort> = settings.channelSort
+
+    fun setChannelSort(sort: AppSettings.ChannelSort) = settings.setChannelSort(sort)
+
     /** The "My categories" choice (group keys); empty = no filter. */
     val shownCategories: StateFlow<Set<String>> = settings.shownCategories
 
@@ -489,6 +502,16 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
                     val firstBuild = !guideBuilt
                     if (firstBuild) StatusBus.set(sizeMessage(visible.size), 0f)
                     buildRows(visible, byEpgChannel, now, reportProgress = firstBuild)
+                }
+            }
+            // Re-sorts the built rows only — changing the order never rebuilds the guide.
+            .combine(combine(settings.channelSort, recentsOnly) { s, r -> s to r }) { rows, (sort, recents) ->
+                // Recent keeps its own order (most recently watched first) whatever the sort.
+                if (recents) return@combine rows
+                when (sort) {
+                    AppSettings.ChannelSort.PROVIDER -> rows
+                    AppSettings.ChannelSort.NAME -> rows.sortedBy { it.primary.shownName.lowercase() }
+                    AppSettings.ChannelSort.NUMBER -> rows.sortedWith(compareBy(nullsLast()) { it.primary.number })
                 }
             }
             // Grouping thousands of channels against a 12-hour, all-feeds programme window is heavy

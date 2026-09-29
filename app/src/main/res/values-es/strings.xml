@@ -510,4 +510,7 @@
     <string name="err_5xx">El servidor del proveedor tiene problemas (%1$d).</string>
     <string name="err_http">El servidor ha devuelto HTTP %1$d.</string>
     <string name="err_generic">No se ha podido reproducir (%1$s).</string>
+    <string name="phone_sort_provider">Orden del proveedor</string>
+    <string name="phone_sort_name">A–Z</string>
+    <string name="phone_sort_number">Por número</string>
 </resources>

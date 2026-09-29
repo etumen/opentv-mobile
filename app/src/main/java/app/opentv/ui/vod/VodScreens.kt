@@ -5,6 +5,7 @@
  */
 package app.opentv.ui.vod
 
+import app.opentv.data.parser.ChannelNameNormalizer
 import androidx.compose.material.icons.filled.Close
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -131,7 +132,8 @@ fun MoviesScreen(
             )
         }
         CategoryChips(
-            entries = categories.map { it.id to it.name },
+            // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
+            entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
             selected = browseCategory,
             onSelectHome = { browseCategory = null },
             onSelectCategory = { id -> browseCategory = id; viewModel.selectMovieCategory(id) },
@@ -213,7 +215,8 @@ fun SeriesScreen(
             )
         }
         CategoryChips(
-            entries = categories.map { it.id to it.name },
+            // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
+            entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
             selected = browseCategory,
             onSelectHome = { browseCategory = null },
             onSelectCategory = { id -> browseCategory = id; viewModel.selectSeriesCategory(id) },
@@ -252,10 +255,11 @@ private fun MovieCategoryGrid(movies: List<Movie>, viewModel: VodViewModel, onOp
     if (movies.isEmpty()) { LoadingVod(stringResource(R.string.vod_loading_movies)); return }
     val groups = remember(movies) { viewModel.collapseVariants(movies) }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 140.dp),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        // Three across on a phone (two giant posters per row wasted the screen); adaptive elsewhere.
+        columns = if (isPhone()) GridCells.Fixed(3) else GridCells.Adaptive(minSize = 140.dp),
+        contentPadding = PaddingValues(if (isPhone()) 8.dp else 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (isPhone()) 4.dp else 12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isPhone()) 8.dp else 16.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
         gridItems(groups, key = { it.primary.id }) { group ->
@@ -284,10 +288,11 @@ private fun MovieCategoryGrid(movies: List<Movie>, viewModel: VodViewModel, onOp
 private fun SeriesCategoryGrid(series: List<Series>, onOpenSeries: (Series) -> Unit) {
     if (series.isEmpty()) { LoadingVod(stringResource(R.string.vod_loading_shows)); return }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 140.dp),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        // Three across on a phone (two giant posters per row wasted the screen); adaptive elsewhere.
+        columns = if (isPhone()) GridCells.Fixed(3) else GridCells.Adaptive(minSize = 140.dp),
+        contentPadding = PaddingValues(if (isPhone()) 8.dp else 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (isPhone()) 4.dp else 12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isPhone()) 8.dp else 16.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
         gridItems(series, key = { it.id }) { item ->
@@ -387,7 +392,8 @@ internal fun PosterCard(
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "posterScale")
     Column(
         modifier
-            .width(POSTER_WIDTH)
+            // Smaller on phones so a shelf shows three-and-a-bit, not two-and-a-half.
+            .width(if (isPhone()) PHONE_POSTER_WIDTH else POSTER_WIDTH)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.isFocused }
             .clip(RoundedCornerShape(10.dp))
@@ -803,6 +809,10 @@ private fun LoadingVod(message: String) {
 
 /** Poster shelf card width; the grid uses an adaptive min size close to this. */
 private val POSTER_WIDTH = 140.dp
+private val PHONE_POSTER_WIDTH = 112.dp
+
+@Composable
+private fun isPhone(): Boolean = LocalLayoutClass.current == LayoutClass.PHONE
 
 /** Rating to one decimal place, locale-independent (the "★" is drawn beside it). */
 internal fun formatRating(rating: Double): String = String.format(java.util.Locale.US, "%.1f", rating)

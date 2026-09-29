@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.automirrored.filled.Sort
+import app.opentv.core.AppSettings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,6 +75,9 @@ fun PhoneLiveLayout(
     allCategories: List<ChannelsViewModel.CategoryGroup>,
     shownCategories: Set<String>,
     onSetShownCategories: (Set<String>) -> Unit,
+    categoryCounts: Map<String, Int>,
+    sort: AppSettings.ChannelSort,
+    onSort: (AppSettings.ChannelSort) -> Unit,
     selectedCategory: String?,
     favouritesOnly: Boolean,
     recentsOnly: Boolean,
@@ -151,6 +156,30 @@ fun PhoneLiveLayout(
                 onClick = { onSelectCategory(null) },
                 label = { Text(stringResource(R.string.guide_all_channels)) },
             )
+            // Order: provider's own → A–Z → by number, one tap each.
+            AssistChip(
+                onClick = {
+                    onSort(
+                        when (sort) {
+                            AppSettings.ChannelSort.PROVIDER -> AppSettings.ChannelSort.NAME
+                            AppSettings.ChannelSort.NAME -> AppSettings.ChannelSort.NUMBER
+                            AppSettings.ChannelSort.NUMBER -> AppSettings.ChannelSort.PROVIDER
+                        },
+                    )
+                },
+                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                label = {
+                    Text(
+                        stringResource(
+                            when (sort) {
+                                AppSettings.ChannelSort.PROVIDER -> R.string.phone_sort_provider
+                                AppSettings.ChannelSort.NAME -> R.string.phone_sort_name
+                                AppSettings.ChannelSort.NUMBER -> R.string.phone_sort_number
+                            },
+                        ),
+                    )
+                },
+            )
         }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -182,6 +211,7 @@ fun PhoneLiveLayout(
                 allCategories = allCategories,
                 shownCategories = shownCategories,
                 onSetShownCategories = onSetShownCategories,
+                counts = categoryCounts,
                 selectedCategory = if (favouritesOnly) null else selectedCategory,
                 onSelectSource = onSelectSource,
                 onSelectCategory = { onSelectCategory(it); showSheet = false },
@@ -198,6 +228,7 @@ private fun CategorySheet(
     allCategories: List<ChannelsViewModel.CategoryGroup>,
     shownCategories: Set<String>,
     onSetShownCategories: (Set<String>) -> Unit,
+    counts: Map<String, Int>,
     selectedCategory: String?,
     onSelectSource: (Long?) -> Unit,
     onSelectCategory: (String?) -> Unit,
@@ -315,16 +346,17 @@ private fun CategorySheet(
                 }
             }
             items(shown, key = { it.key }) { group ->
-                SheetRow(group.label, selectedCategory == group.key) { onSelectCategory(group.key) }
+                SheetRow(group.label, selectedCategory == group.key, counts[group.key]) { onSelectCategory(group.key) }
             }
         }
     }
 }
 
 @Composable
-private fun SheetRow(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun SheetRow(label: String, selected: Boolean, count: Int? = null, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        trailingContent = count?.let { { Text("$it", color = MaterialTheme.colorScheme.onSurfaceVariant) } },
         colors = ListItemDefaults.colors(
             containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
             else MaterialTheme.colorScheme.surfaceContainerLow,

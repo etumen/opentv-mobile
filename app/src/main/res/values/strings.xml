@@ -561,4 +561,7 @@
     <string name="err_5xx">The provider’s server is having problems (%1$d).</string>
     <string name="err_http">The server returned HTTP %1$d.</string>
     <string name="err_generic">Playback failed (%1$s).</string>
+    <string name="phone_sort_provider">Provider order</string>
+    <string name="phone_sort_name">A–Z</string>
+    <string name="phone_sort_number">By number</string>
 </resources>

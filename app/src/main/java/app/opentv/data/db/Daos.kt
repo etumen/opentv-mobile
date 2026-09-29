@@ -60,6 +60,10 @@ interface SourceDao {
 
 @Dao
 interface ChannelDao {
+    /** Visible channels per category id — the counts shown in the phone category sheet. */
+    @Query("SELECT categoryId AS categoryId, COUNT(*) AS count FROM channels WHERE hidden = 0 AND categoryId IS NOT NULL GROUP BY categoryId")
+    fun observeCountsByCategory(): Flow<List<CategoryCount>>
+
     @Query(
         """
         SELECT * FROM channels
@@ -857,3 +861,5 @@ interface DownloadDao {
     @Query("UPDATE downloads SET systemId = :systemId WHERE id = :id")
     suspend fun setSystemId(id: Long, systemId: Long)
 }
+
+data class CategoryCount(val categoryId: String, val count: Int)

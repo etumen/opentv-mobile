@@ -279,6 +279,19 @@ class AppSettings private constructor(context: Context) {
         _languageTag.value = tag
     }
 
+    /** How the phone Live list is ordered. PROVIDER keeps the provider's own order. */
+    enum class ChannelSort { PROVIDER, NAME, NUMBER }
+
+    private val _channelSort = MutableStateFlow(
+        runCatching { ChannelSort.valueOf(prefs.getString(KEY_CHANNEL_SORT, null) ?: "") }.getOrDefault(ChannelSort.PROVIDER),
+    )
+    val channelSort: StateFlow<ChannelSort> = _channelSort.asStateFlow()
+
+    fun setChannelSort(sort: ChannelSort) {
+        prefs.edit().putString(KEY_CHANNEL_SORT, sort.name).apply()
+        _channelSort.value = sort
+    }
+
     /** Live channels played lately (ids), newest first — the Live tab's "Recent" list. */
     private val _recentChannels = MutableStateFlow(
         prefs.getString(KEY_RECENT_CHANNELS, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() },
@@ -479,6 +492,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_SHOWN_CATS = "live_shown_categories"
         private const val KEY_RECENT_SEARCHES = "recent_searches"
         private const val KEY_RECENT_CHANNELS = "recent_channels"
+        private const val KEY_CHANNEL_SORT = "channel_sort"
         private const val MAX_RECENT_CHANNELS = 20
         private const val MAX_RECENT_SEARCHES = 8
         private const val KEY_ACTIVE_PROFILE = "active_profile_id"

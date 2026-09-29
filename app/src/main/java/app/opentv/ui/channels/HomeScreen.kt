@@ -137,6 +137,8 @@ fun HomeScreen(
     val categories by viewModel.visibleCategoryGroups.collectAsState()
     val allCategories by viewModel.filterableCategoryGroups.collectAsState()
     val shownCategories by viewModel.shownCategories.collectAsState()
+    val categoryCounts by viewModel.categoryCounts.collectAsState()
+    val channelSort by viewModel.channelSort.collectAsState()
     val rows by viewModel.rows.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val favouritesOnly by viewModel.favouritesOnly.collectAsState()
@@ -335,6 +337,9 @@ fun HomeScreen(
             allCategories = allCategories,
             shownCategories = shownCategories,
             onSetShownCategories = viewModel::setShownCategories,
+            categoryCounts = categoryCounts,
+            sort = channelSort,
+            onSort = viewModel::setChannelSort,
             selectedCategory = selectedCategory,
             favouritesOnly = favouritesOnly,
             recentsOnly = recentsOnly,

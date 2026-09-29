@@ -20,6 +20,7 @@ class VodTitleCleanerTest {
         assertThat(VodTitleCleaner.prefixTags("A+ - Sago Mini Friends")).containsExactly("A+")
         assertThat(VodTitleCleaner.clean("A+ - Sago Mini Friends")).isEqualTo("Sago Mini Friends")
         assertThat(VodTitleCleaner.prefixTags("MAX - Friends (1994)")).containsExactly("MAX")
+        assertThat(VodTitleCleaner.clean("SUBS - Zakir Khan: Papa Yaar")).isEqualTo("Zakir Khan: Papa Yaar")
         // A title that merely starts with the word keeps it.
         assertThat(VodTitleCleaner.clean("Max Payne (2008)")).isEqualTo("Max Payne (2008)")
         assertThat(VodTitleCleaner.clean("4K-EN - The Matrix  (1999)")).isEqualTo("The Matrix (1999)")
