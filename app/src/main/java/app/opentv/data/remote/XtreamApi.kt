@@ -366,12 +366,13 @@ class XtreamApi(
      * stays flat however large the catalogue is. A non-array reply (some panels send `{}` for
      * "nothing") yields no batches.
      */
+    // Parsing 180k titles is the heaviest CPU work in the app: background priority (see BackgroundWork).
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     private suspend fun streamArray(
         source: Source,
         action: String,
         onBatch: suspend (List<JsonElement>) -> Unit,
-    ) = withContext(Dispatchers.IO) {
+    ) = withContext(app.opentv.core.BackgroundWork.dispatcher) {
         val url = baseUrl(source).newBuilder()
             .encodedPath("/player_api.php")
             .addQueryParameter("username", source.username.orEmpty())

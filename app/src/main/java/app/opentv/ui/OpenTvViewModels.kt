@@ -1054,6 +1054,10 @@ class VodViewModel(app: Application) : AndroidViewModel(app) {
     val hasSeries: StateFlow<Boolean?> = graph.catalogRepository.observeHasSeries()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** Titles per category, for the phone category sheet (read on open). */
+    suspend fun movieCategoryCounts(): Map<String, Int> = graph.catalogRepository.movieCountsByCategory()
+    suspend fun seriesCategoryCounts(): Map<String, Int> = graph.catalogRepository.seriesCountsByCategory()
+
     // Movies + series load on demand — the first time the user opens Movies or Shows — rather than
     // up front at login. A provider's 40,000-title VOD list is exactly what makes a first sync
     // crawl, and most sessions only ever watch live TV. Loaded once per app run.

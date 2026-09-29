@@ -37,6 +37,17 @@ class VodTitleCleanerTest {
     }
 
     @Test
+    fun `hyphen-joined tag groups are peeled, look-alike titles are not`() {
+        assertThat(VodTitleCleaner.clean("SO-IN - KJQ (2026)")).isEqualTo("KJQ (2026)")
+        assertThat(VodTitleCleaner.prefixTags("SO-IN - KJQ (2026)")).containsExactly("SO", "IN").inOrder()
+        assertThat(VodTitleCleaner.clean("AR-IN-S - Some Film")).isEqualTo("Some Film")
+        assertThat(VodTitleCleaner.clean("KU-S - Some Film")).isEqualTo("Some Film")
+        assertThat(VodTitleCleaner.clean("SC - Some Film")).isEqualTo("Some Film")
+        assertThat(VodTitleCleaner.clean("X-MEN - Days of Future Past")).isEqualTo("X-MEN - Days of Future Past")
+        assertThat(VodTitleCleaner.clean("Spider-Man - Homecoming")).isEqualTo("Spider-Man - Homecoming")
+    }
+
+    @Test
     fun `a title with no provider prefix has no tags`() {
         assertThat(VodTitleCleaner.prefixTags("The Matrix (1999)")).isEmpty()
     }

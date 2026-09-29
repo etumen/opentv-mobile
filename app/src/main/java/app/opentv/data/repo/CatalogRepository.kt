@@ -5,6 +5,7 @@
  */
 package app.opentv.data.repo
 
+import app.opentv.core.BackgroundWork
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import android.util.Log
@@ -253,6 +254,12 @@ class CatalogRepository(
      *  library grew" from "unchanged since last open" without loading every row. */
     suspend fun movieCount(): Int = withContext(Dispatchers.IO) { movieDao.count() }
     fun observeHasMovies(): Flow<Boolean> = movieDao.observeAny()
+
+    suspend fun movieCountsByCategory(): Map<String, Int> =
+        withContext(Dispatchers.IO) { movieDao.countsByCategory().associate { it.categoryId to it.count } }
+
+    suspend fun seriesCountsByCategory(): Map<String, Int> =
+        withContext(Dispatchers.IO) { seriesDao.countsByCategory().associate { it.categoryId to it.count } }
     fun observeHasSeries(): Flow<Boolean> = seriesDao.observeAny()
     suspend fun seriesCount(): Int = withContext(Dispatchers.IO) { seriesDao.count() }
 
@@ -641,7 +648,7 @@ class CatalogRepository(
      * [syncLive] + background [syncVod] path instead, so the guide appears without waiting for a
      * 40,000-title VOD list.
      */
-    suspend fun sync(source: Source, nowUtcMillis: Long): SyncResult = withContext(Dispatchers.IO) {
+    suspend fun sync(source: Source, nowUtcMillis: Long): SyncResult = withContext(BackgroundWork.dispatcher) {
         // Skip fetching a content type the user has switched off — that's the whole speed-up.
         // Live is gated here (not in syncLive) so onboarding's direct syncLive still loads channels.
         // Already-synced rows are left untouched: turning a type back on and refreshing restores it.
@@ -673,7 +680,7 @@ class CatalogRepository(
 
     /** Movies + series — best-effort, meant to run in the background so a huge VOD list never
      * blocks live TV. Silent on failure: an account with no VOD is normal, not an error. */
-    suspend fun syncVod(source: Source, nowUtcMillis: Long) = withContext(Dispatchers.IO) {
+    suspend fun syncVod(source: Source, nowUtcMillis: Long) = withContext(BackgroundWork.dispatcher) {
         runCatching { if (source.kind == SourceKind.XTREAM) syncXtreamVod(source, nowUtcMillis) }
             .onFailure { Log.w(TAG, "VOD sync failed for source ${source.id}", it) }
     }
@@ -865,7 +872,7 @@ class CatalogRepository(
      * hours away. This runs the same pass over existing rows locally, so a code fix shows up
      * on the next launch instead of the next sync. Bump [NORMALIZER_VERSION] to trigger it.
      */
-    suspend fun renormalizeAll(): Int = withContext(Dispatchers.IO) {
+    suspend fun renormalizeAll(): Int = withContext(BackgroundWork.dispatcher) {
         val existing = channelDao.allForMatching()
         if (existing.isEmpty()) return@withContext 0
 

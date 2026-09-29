@@ -483,6 +483,11 @@ interface MovieDao {
     suspend fun count(): Int
 
     /** EXISTS, not COUNT: answers "is there anything?" without walking 180k rows. */
+    /** Titles per category id — read once when the category sheet opens (not observed: a live
+     *  GROUP BY over the whole library would re-run on every batch a sync writes). */
+    @Query("SELECT categoryId AS categoryId, COUNT(*) AS count FROM movies WHERE categoryId IS NOT NULL GROUP BY categoryId")
+    suspend fun countsByCategory(): List<CategoryCount>
+
     @Query("SELECT EXISTS(SELECT 1 FROM movies)")
     fun observeAny(): Flow<Boolean>
 
@@ -590,6 +595,11 @@ interface SeriesDao {
     /** How many series are on disk — the cheap "did the library grow" check for the home feeds. */
     @Query("SELECT COUNT(*) FROM series")
     suspend fun count(): Int
+
+    /** Titles per category id — read once when the category sheet opens (not observed: a live
+     *  GROUP BY over the whole library would re-run on every batch a sync writes). */
+    @Query("SELECT categoryId AS categoryId, COUNT(*) AS count FROM series WHERE categoryId IS NOT NULL GROUP BY categoryId")
+    suspend fun countsByCategory(): List<CategoryCount>
 
     @Query("SELECT EXISTS(SELECT 1 FROM series)")
     fun observeAny(): Flow<Boolean>

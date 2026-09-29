@@ -140,6 +140,7 @@ fun MoviesScreen(
             selected = browseCategory,
             onSelectHome = { browseCategory = null },
             onSelectCategory = { id -> browseCategory = id; viewModel.selectMovieCategory(id) },
+            loadCounts = viewModel::movieCategoryCounts,
         )
         // Weighted so the shelves fill the space under the fixed search + chips header, exactly and
         // unambiguously — the same reason Live TV weights its guide grid.
@@ -227,6 +228,7 @@ fun SeriesScreen(
             selected = browseCategory,
             onSelectHome = { browseCategory = null },
             onSelectCategory = { id -> browseCategory = id; viewModel.selectSeriesCategory(id) },
+            loadCounts = viewModel::seriesCategoryCounts,
         )
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
@@ -593,9 +595,10 @@ private fun CategoryChips(
     selected: String?,
     onSelectHome: () -> Unit,
     onSelectCategory: (String) -> Unit,
+    loadCounts: (suspend () -> Map<String, Int>)? = null,
 ) {
     if (LocalLayoutClass.current == LayoutClass.PHONE) {
-        PhoneCategoryPicker(entries, selected, onSelectHome, onSelectCategory)
+        PhoneCategoryPicker(entries, selected, onSelectHome, onSelectCategory, loadCounts)
         return
     }
     LazyRow(
@@ -629,8 +632,11 @@ private fun PhoneCategoryPicker(
     selected: String?,
     onSelectHome: () -> Unit,
     onSelectCategory: (String) -> Unit,
+    loadCounts: (suspend () -> Map<String, Int>)?,
 ) {
     var open by remember { mutableStateOf(false) }
+    var counts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    LaunchedEffect(open) { if (open && loadCounts != null) counts = runCatching { loadCounts() }.getOrDefault(emptyMap()) }
     val selectedName = entries.firstOrNull { it.first == selected }?.second
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
@@ -685,6 +691,9 @@ private fun PhoneCategoryPicker(
                     items(shown, key = { it.first }) { (id, name) ->
                         ListItem(
                             headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            trailingContent = counts[id]?.let { n ->
+                                { Text("$n", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            },
                             colors = ListItemDefaults.colors(
                                 containerColor = if (selected == id) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceContainerLow,

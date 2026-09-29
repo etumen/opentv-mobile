@@ -157,7 +157,7 @@ class EpgRepository(
 
     /** Downloads every enabled feed, merges, prunes, and re-runs the matcher. */
     suspend fun syncAll(nowUtcMillis: Long, force: Boolean = false): SyncSummary =
-        withContext(Dispatchers.IO) {
+        withContext(app.opentv.core.BackgroundWork.dispatcher) {
             ensureFeeds()
             maybeAutoEnableRegionalFeed()
 

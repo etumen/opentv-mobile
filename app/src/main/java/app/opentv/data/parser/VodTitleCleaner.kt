@@ -51,7 +51,11 @@ object VodTitleCleaner {
         "FI", "FIN", "EL", "GRE", "GR", "RO", "RON", "CS", "CZE", "CZ", "HU", "HUN",
         "HR", "SR", "BG", "SK", "SL", "UK", "GB", "US", "USA", "CA", "CAN", "AU", "AUS",
         "NZ", "IE", "IN", "IND", "MX", "MEX", "ZA", "JP", "JPN", "KR", "KOR", "CN",
-        "VN", "TH", "ID", "PH", "IR", "IL", "HE", "HEB", "AF", "ALB", "MULTI", "VO", "SUBS", "SUB",
+        "VN", "TH", "ID", "PH", "IR", "IL", "HE", "HEB", "AF", "ALB", "MULTI", "VO", "SUBS", "SUB", "DUB",
+        // Seen on big multi-country panels: Kurdish, Somali, Pakistan, Bengali, Iceland, Québec,
+        // Latino, and Indian-language tags (Telugu, Tamil, Malayalam, Kannada, Punjabi…).
+        "KU", "KUR", "SO", "PK", "BN", "IS", "QC", "LA", "TL", "TA", "TU", "ML", "MM", "KN", "PI",
+        "PA", "MR", "EG",
     )
 
     /**
@@ -65,6 +69,7 @@ object VodTitleCleaner {
     private val SERVICE_CODES: Set<String> = setOf(
         "NF",                    // Netflix
         "TOP",                   // provider "top picks" shelf prefix ("TOP - Title")
+        "SC", "SOC", "EX", "XXX",  // provider shelf / section prefixes
         "AMZ", "AMZN", "PMV",    // Amazon Prime Video
         "DSNY", "DNSP", "D+",    // Disney+
         "HBO", "HMAX", "MAX",    // HBO / Max
@@ -94,6 +99,8 @@ object VodTitleCleaner {
      */
     private val TRAILING_CODE_PAREN = Regex("""\s*[\[(]\s*([A-Za-z]{2})\s*[\])]\s*$""")
 
+    /** "SO-IN - ", "AR-IN-S - ": caps/digit parts joined by hyphens, then a spaced separator. */
+    private val COMPOUND_TAG = Regex("""^\s*([A-Z0-9]{1,4}\+?(?:-[A-Z0-9]{1,4}\+?)+)\s+[-–—|]\s+""")
     private val MULTI_SPACE = Regex("""\s+""")
 
     /**
@@ -135,6 +142,20 @@ object VodTitleCleaner {
         var s = input
         val tags = ArrayList<String>(2)
         while (true) {
+            // A hyphen-joined tag group before " - " ("SO-IN - …", "AR-IN-S - …", "AF-EN - …"),
+            // trusted only when one of its parts is a known language/service code — so a title
+            // like "X-MEN - …" is left alone.
+            val compound = COMPOUND_TAG.find(s)
+            if (compound != null) {
+                val group = compound.groupValues[1]
+                val parts = group.split('-')
+                if (parts.any { it.uppercase() in LANG_CODES || it.uppercase() in SERVICE_CODES }) {
+                    // Each part is its own tag, so "4K-AR" still filters as 4K and as AR.
+                    parts.forEach { tags += it.uppercase() }
+                    s = s.substring(compound.range.last + 1)
+                    continue
+                }
+            }
             val bracket = BRACKET_TAG.find(s)
             if (bracket != null && isPrefixTag(bracket.groupValues[1], bracketed = true, separator = null)) {
                 tags += bracket.groupValues[1].uppercase()
