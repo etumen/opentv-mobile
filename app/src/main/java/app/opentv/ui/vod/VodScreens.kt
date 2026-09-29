@@ -96,7 +96,9 @@ fun MoviesScreen(
     viewModel: VodViewModel = viewModel(),
 ) {
     val categories by viewModel.movieCategories.collectAsState()
-    val resume by viewModel.continueWatching.collectAsState()
+    // Films only here; episodes belong on the Series tab.
+    val allResume by viewModel.continueWatching.collectAsState()
+    val resume = remember(allResume) { allResume.filter { it.mediaKey.startsWith("movie:") } }
     val recommended by viewModel.recommendedMovies.collectAsState()
     val recentlyAdded by viewModel.recentlyAddedMovies.collectAsState()
     val genreRows by viewModel.movieGenreRows.collectAsState()
@@ -181,7 +183,9 @@ fun SeriesScreen(
     viewModel: VodViewModel = viewModel(),
 ) {
     val categories by viewModel.seriesCategories.collectAsState()
-    val resume by viewModel.continueWatching.collectAsState()
+    // Episodes only here; films belong on the Films tab.
+    val allResume by viewModel.continueWatching.collectAsState()
+    val resume = remember(allResume) { allResume.filter { it.mediaKey.startsWith("ep:") } }
     val recentlyAdded by viewModel.recentlyAddedSeries.collectAsState()
     val genreRows by viewModel.seriesGenreRows.collectAsState()
     val categorySeries by viewModel.series.collectAsState()
