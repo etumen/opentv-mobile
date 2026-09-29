@@ -113,6 +113,28 @@ class AppSettings private constructor(context: Context) {
         MutableStateFlow(prefs.getStringSet(KEY_SHOWN_CATS, emptySet())!!.toSet())
     val shownCategories: StateFlow<Set<String>> = _shownCategories.asStateFlow()
 
+    /** What the user searched for lately, newest first — offered again when the search opens. */
+    private val _recentSearches = MutableStateFlow(
+        prefs.getString(KEY_RECENT_SEARCHES, "").orEmpty().split('\n').filter { it.isNotBlank() },
+    )
+    val recentSearches: StateFlow<List<String>> = _recentSearches.asStateFlow()
+
+    fun addRecentSearch(query: String) {
+        val q = query.trim()
+        if (q.length < 2) return
+        saveRecentSearches(listOf(q) + _recentSearches.value.filterNot { it.equals(q, ignoreCase = true) })
+    }
+
+    fun removeRecentSearch(query: String) = saveRecentSearches(_recentSearches.value - query)
+
+    fun clearRecentSearches() = saveRecentSearches(emptyList())
+
+    private fun saveRecentSearches(list: List<String>) {
+        val kept = list.take(MAX_RECENT_SEARCHES)
+        prefs.edit().putString(KEY_RECENT_SEARCHES, kept.joinToString("\n")).apply()
+        _recentSearches.value = kept
+    }
+
     fun setShownCategories(keys: Set<String>) {
         prefs.edit().putStringSet(KEY_SHOWN_CATS, keys).apply()
         _shownCategories.value = keys.toSet()
@@ -255,6 +277,18 @@ class AppSettings private constructor(context: Context) {
     fun setLanguageTag(tag: String) {
         prefs.edit().putString(KEY_LANGUAGE, tag).apply()
         _languageTag.value = tag
+    }
+
+    /** Live channels played lately (ids), newest first — the Live tab's "Recent" list. */
+    private val _recentChannels = MutableStateFlow(
+        prefs.getString(KEY_RECENT_CHANNELS, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() },
+    )
+    val recentChannels: StateFlow<List<Long>> = _recentChannels.asStateFlow()
+
+    fun addRecentChannel(id: Long) {
+        val kept = (listOf(id) + _recentChannels.value.filter { it != id }).take(MAX_RECENT_CHANNELS)
+        prefs.edit().putString(KEY_RECENT_CHANNELS, kept.joinToString(",")).apply()
+        _recentChannels.value = kept
     }
 
     /** The last channel played, for boot-to-last-channel. Not a flow — only read once at launch. */
@@ -443,6 +477,10 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_PIN_HASH = "parental_pin_hash"
         private const val KEY_HIDDEN_CATS = "hidden_categories"
         private const val KEY_SHOWN_CATS = "live_shown_categories"
+        private const val KEY_RECENT_SEARCHES = "recent_searches"
+        private const val KEY_RECENT_CHANNELS = "recent_channels"
+        private const val MAX_RECENT_CHANNELS = 20
+        private const val MAX_RECENT_SEARCHES = 8
         private const val KEY_ACTIVE_PROFILE = "active_profile_id"
         private const val KEY_RESUME_LAST = "resume_last_channel"
         private const val KEY_CONTENT_LIVE = "content_live"

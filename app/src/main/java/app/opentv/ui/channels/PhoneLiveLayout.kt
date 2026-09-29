@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,7 +75,9 @@ fun PhoneLiveLayout(
     onSetShownCategories: (Set<String>) -> Unit,
     selectedCategory: String?,
     favouritesOnly: Boolean,
+    recentsOnly: Boolean,
     onSelectSource: (Long?) -> Unit,
+    onSelectRecents: () -> Unit,
     onSelectFavourites: () -> Unit,
     onSelectCategory: (String?) -> Unit,
     onQuery: (String) -> Unit,
@@ -95,6 +98,7 @@ fun PhoneLiveLayout(
             placeholder = {
                 Text(
                     when {
+                        recentsOnly -> stringResource(R.string.phone_search_in, stringResource(R.string.phone_live_recent))
                         favouritesOnly -> stringResource(R.string.phone_search_in, stringResource(R.string.guide_favourites))
                         categoryLabel != null -> stringResource(R.string.phone_search_in, categoryLabel)
                         else -> stringResource(R.string.phone_search_all)
@@ -119,11 +123,11 @@ fun PhoneLiveLayout(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             FilterChip(
-                selected = !favouritesOnly && selectedCategory != null,
+                selected = !recentsOnly && !favouritesOnly && selectedCategory != null,
                 onClick = { showSheet = true },
                 label = {
                     Text(
-                        if (!favouritesOnly && categoryLabel != null) categoryLabel
+                        if (!recentsOnly && !favouritesOnly && categoryLabel != null) categoryLabel
                         else stringResource(R.string.phone_live_categories),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -132,12 +136,18 @@ fun PhoneLiveLayout(
                 trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
             )
             FilterChip(
+                selected = recentsOnly,
+                onClick = onSelectRecents,
+                label = { Text(stringResource(R.string.phone_live_recent)) },
+                leadingIcon = { Icon(Icons.Filled.History, contentDescription = null) },
+            )
+            FilterChip(
                 selected = favouritesOnly,
                 onClick = onSelectFavourites,
                 label = { Text(stringResource(R.string.guide_favourites)) },
             )
             FilterChip(
-                selected = !favouritesOnly && selectedCategory == null,
+                selected = !recentsOnly && !favouritesOnly && selectedCategory == null,
                 onClick = { onSelectCategory(null) },
                 label = { Text(stringResource(R.string.guide_all_channels)) },
             )

@@ -79,6 +79,7 @@ import app.opentv.data.model.Series
 import app.opentv.data.model.StremioStream
 import app.opentv.data.parser.displayTitle
 import app.opentv.data.parser.sourceTag
+import app.opentv.data.parser.episodeDisplayTitle
 import app.opentv.ui.VodViewModel
 import coil.compose.AsyncImage
 import androidx.compose.ui.window.Dialog
@@ -368,15 +369,18 @@ fun SeriesDetailScreen(
                             onClick = {
                                 downloadScope.launch {
                                     val repo = graph.downloadRepository
-                                    // Episode by episode; stop at the first that won't fit.
-                                    var last: DownloadRepository.Start = DownloadRepository.Start.Started
+                                    // Queue every episode not already saved; they download one by one.
+                                    var first: DownloadRepository.Start? = null
                                     for (ep in eps) {
                                         val d = episodeDownload(s, ep)
                                         if (downloadDao.byKey(d.mediaKey) != null) continue
-                                        last = repo.enqueue(d, "OpenTV/0.1 (Android)")
-                                        if (last is DownloadRepository.Start.NoSpace) break
+                                        val r = repo.enqueue(d)
+                                        if (first == null) first = r
+                                        if (r is DownloadRepository.Start.NoSpace) break
                                     }
-                                    Toast.makeText(context, startMessage(context, s.displayTitle, last), Toast.LENGTH_LONG).show()
+                                    first?.let {
+                                        Toast.makeText(context, startMessage(context, s.displayTitle, it), Toast.LENGTH_LONG).show()
+                                    }
                                 }
                             },
                             modifier = Modifier.padding(end = 16.dp),
@@ -388,7 +392,7 @@ fun SeriesDetailScreen(
                     }
                 }
                 items(eps, key = { it.id }) { ep ->
-                    EpisodeRow(ep, onPlayEpisode, trailing = {
+                    EpisodeRow(ep, onPlayEpisode, seriesTitle = s.name, trailing = {
                         DownloadControl(mediaKey = "ep:${ep.id}", buildDownload = { episodeDownload(s, ep) }, compact = true)
                     })
                 }
@@ -767,8 +771,10 @@ private fun PhoneDetailHeader(
 private fun EpisodeRow(
     ep: Episode,
     onPlay: (mediaKey: String, url: String, title: String) -> Unit,
+    seriesTitle: String? = null,
     trailing: @Composable () -> Unit = {},
 ) {
+    val shownTitle = remember(ep.title, seriesTitle) { episodeDisplayTitle(ep.title, seriesTitle) }
     var focused by remember { mutableStateOf(false) }
     Row(
         Modifier
@@ -785,7 +791,7 @@ private fun EpisodeRow(
                 else Modifier,
             )
             .clickable {
-                onPlay("ep:${ep.id}", ep.streamUrl, "S${ep.season}E${ep.episodeNumber} · ${ep.title}")
+                onPlay("ep:${ep.id}", ep.streamUrl, "S${ep.season}E${ep.episodeNumber} · $shownTitle")
             }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -797,7 +803,7 @@ private fun EpisodeRow(
             modifier = Modifier.width(72.dp),
         )
         Text(
-            ep.title,
+            shownTitle,
             style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -809,7 +815,7 @@ private fun EpisodeRow(
 
 /** The Downloads-tab entry for one episode of [series]. */
 private fun episodeDownload(series: Series, ep: Episode) = Download(
-    mediaKey = "ep:${ep.id}", kind = KIND_EPISODE, title = ep.title, posterUrl = ep.stillUrl ?: series.posterUrl,
+    mediaKey = "ep:${ep.id}", kind = KIND_EPISODE, title = episodeDisplayTitle(ep.title, series.name), posterUrl = ep.stillUrl ?: series.posterUrl,
     tag = series.sourceTag, seriesTitle = series.displayTitle, season = ep.season, episode = ep.episodeNumber,
     sourceUrl = ep.streamUrl, systemId = 0, createdMillis = 0,
 )

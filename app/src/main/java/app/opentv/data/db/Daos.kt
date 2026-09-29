@@ -568,6 +568,9 @@ interface SeriesDao {
     fun searchFts(match: String, limit: Int = 200): Flow<List<Series>>
 
     /** Newest-first, for the "Recently Added" home row. Reactive so it fills in as VOD sync lands. */
+    @Query("SELECT * FROM series WHERE sourceId = :sourceId AND seriesId = :seriesId LIMIT 1")
+    suspend fun byProviderId(sourceId: Long, seriesId: String): Series?
+
     @Query("SELECT * FROM series ORDER BY addedMillis DESC LIMIT :limit")
     fun observeRecentlyAdded(limit: Int): Flow<List<Series>>
 
@@ -846,4 +849,11 @@ interface DownloadDao {
 
     @Query("DELETE FROM downloads WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /** The oldest download still waiting in the queue (systemId = PENDING). */
+    @Query("SELECT * FROM downloads WHERE systemId = -1 ORDER BY createdMillis LIMIT 1")
+    suspend fun nextPending(): Download?
+
+    @Query("UPDATE downloads SET systemId = :systemId WHERE id = :id")
+    suspend fun setSystemId(id: Long, systemId: Long)
 }

@@ -5,6 +5,9 @@
  */
 package app.opentv.ui.channels
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.History
 import app.opentv.ui.LayoutClass
 import app.opentv.ui.LocalLayoutClass
 import app.opentv.ui.settings.screenPadding
@@ -221,6 +224,11 @@ private fun PhoneSearchScreen(
         (showMovies && movies.isNotEmpty()) || (showSeries && shows.isNotEmpty())
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val settings = remember { app.opentv.core.ServiceLocator.get(context).settings }
+    val recent by settings.recentSearches.collectAsState()
+    // A search "counts" once the user commits to it — the keyboard's search key or opening a result.
+    val saveSearch: () -> Unit = { settings.addRecentSearch(query) }
 
     LaunchedEffect(query) {
         viewModel.setSearchQuery(query)
@@ -257,7 +265,7 @@ private fun PhoneSearchScreen(
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                keyboardActions = KeyboardActions(onSearch = { saveSearch(); keyboard?.hide() }),
                 modifier = Modifier.weight(1f).focusRequester(focus),
             )
         }
@@ -290,6 +298,12 @@ private fun PhoneSearchScreen(
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
+                query.isBlank() && recent.isNotEmpty() -> RecentSearches(
+                    recent = recent,
+                    onPick = { query = it },
+                    onRemove = settings::removeRecentSearch,
+                    onClear = settings::clearRecentSearches,
+                )
                 query.isBlank() -> Hint(stringResource(R.string.search_start_hint))
                 query.trim().length < 2 -> Hint(stringResource(R.string.common_keep_typing))
                 !anyResults -> Hint(stringResource(R.string.search_no_results, query))
@@ -303,20 +317,56 @@ private fun PhoneSearchScreen(
                     if (showChannels && channelResults.isNotEmpty()) {
                         if (scope == "all") item { SectionHeader(stringResource(R.string.common_channels)) }
                         items(channelResults, key = { "c${it.key}" }) { row ->
-                            SearchResultRow(row = row, onClick = { onPlayChannel(row.primary) })
+                            SearchResultRow(row = row, onClick = { saveSearch(); onPlayChannel(row.primary) })
                         }
                     }
                     if (showMovies && movies.isNotEmpty()) {
                         if (scope == "all") item { SectionHeader(stringResource(R.string.nav_movies)) }
                         items(movies, key = { "m${it.id}" }) { movie ->
-                            VodResultRow(movie.displayTitle, movie.posterUrl, listOfNotNull(movie.sourceTag, movie.year?.toString()).joinToString("  ·  ")) { onPlayMovie(movie) }
+                            VodResultRow(movie.displayTitle, movie.posterUrl, listOfNotNull(movie.sourceTag, movie.year?.toString()).joinToString("  ·  ")) { saveSearch(); onPlayMovie(movie) }
                         }
                     }
                     if (showSeries && shows.isNotEmpty()) {
                         if (scope == "all") item { SectionHeader(stringResource(R.string.nav_shows)) }
                         items(shows, key = { "s${it.id}" }) { show ->
-                            VodResultRow(show.displayTitle, show.posterUrl, listOfNotNull(show.sourceTag, show.year?.toString()).joinToString("  ·  ")) { onOpenSeries(show) }
+                            VodResultRow(show.displayTitle, show.posterUrl, listOfNotNull(show.sourceTag, show.year?.toString()).joinToString("  ·  ")) { saveSearch(); onOpenSeries(show) }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** "Recent searches": tap one to run it again, × to forget it, or clear them all. */
+@Composable
+private fun RecentSearches(
+    recent: List<String>,
+    onPick: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.search_recent),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onClear) { Text(stringResource(R.string.search_recent_clear)) }
+        }
+        LazyColumn {
+            items(recent, key = { it }) { q ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { onPick(q) }
+                        .padding(start = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(q, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(horizontal = 12.dp))
+                    IconButton(onClick = { onRemove(q) }) {
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.phone_clear))
                     }
                 }
             }

@@ -6,6 +6,7 @@
 package app.opentv
 
 import app.opentv.data.parser.VodTitleCleaner
+import app.opentv.data.parser.episodeDisplayTitle
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -16,7 +17,22 @@ class VodTitleCleanerTest {
         assertThat(VodTitleCleaner.prefixTags("4K-EN - The Matrix  (1999)")).containsExactly("4K", "EN").inOrder()
         assertThat(VodTitleCleaner.prefixTags("DE - Animatrix (2003)")).containsExactly("DE")
         assertThat(VodTitleCleaner.prefixTags("[ES] Torrente")).containsExactly("ES")
+        assertThat(VodTitleCleaner.prefixTags("A+ - Sago Mini Friends")).containsExactly("A+")
+        assertThat(VodTitleCleaner.clean("A+ - Sago Mini Friends")).isEqualTo("Sago Mini Friends")
+        assertThat(VodTitleCleaner.prefixTags("MAX - Friends (1994)")).containsExactly("MAX")
+        // A title that merely starts with the word keeps it.
+        assertThat(VodTitleCleaner.clean("Max Payne (2008)")).isEqualTo("Max Payne (2008)")
         assertThat(VodTitleCleaner.clean("4K-EN - The Matrix  (1999)")).isEqualTo("The Matrix (1999)")
+    }
+
+    @Test
+    fun `episode titles drop tags, show name and SxxEyy`() {
+        assertThat(episodeDisplayTitle("4K-A+ - Sago Mini Friends - S01E01 - Pizza Please", "A+ - Sago Mini Friends"))
+            .isEqualTo("Pizza Please")
+        assertThat(episodeDisplayTitle("The Office - S02E03 - Office Olympics", "The Office (2005)"))
+            .isEqualTo("Office Olympics")
+        // Nothing left after peeling: keep the cleaned title rather than an empty row.
+        assertThat(episodeDisplayTitle("EN - The Office", "The Office")).isEqualTo("The Office")
     }
 
     @Test

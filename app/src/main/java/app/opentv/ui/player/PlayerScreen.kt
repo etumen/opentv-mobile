@@ -228,6 +228,7 @@ fun PlayerScreen(
         currentId = channel.id
         paused = false
         settings.lastChannelId = channel.id
+        settings.addRecentChannel(channel.id)
         scope.launch {
             val source = graph.sourceRepository.byId(channel.sourceId)
             // Xtream/M3U carry a ready URL; a Stalker channel's URL is minted here from its cmd.

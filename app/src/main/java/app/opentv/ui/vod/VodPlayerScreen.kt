@@ -351,8 +351,11 @@ fun VodPlayerScreen(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator()
-                        Spacer(Modifier.height(16.dp))
-                        Text(current.title, color = Color.White)
+                        // The control bar already shows the title; drawn twice they overlapped.
+                        if (!controlsVisible) {
+                            Spacer(Modifier.height(16.dp))
+                            Text(current.title, color = Color.White)
+                        }
                     }
                 }
 

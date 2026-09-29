@@ -136,5 +136,13 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-    </application>
+            <!-- Starts the next queued download when one finishes (downloads run one at a time). -->
+        <receiver
+            android:name=".data.work.DownloadCompleteReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
+</application>
 </manifest>

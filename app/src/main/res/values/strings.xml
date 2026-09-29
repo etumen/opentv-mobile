@@ -525,7 +525,7 @@
     <string name="dl_download">Download</string>
     <string name="dl_downloading">Downloading %1$d%%</string>
     <string name="dl_downloaded">Downloaded</string>
-    <string name="dl_queued">Waiting…</string>
+    <string name="dl_queued">Queued</string>
     <string name="dl_paused">Paused — waiting for network</string>
     <string name="dl_failed">Download failed</string>
     <string name="dl_delete">Delete</string>
@@ -537,4 +537,28 @@
     <string name="dl_used">%1$s used · %2$s free</string>
     <string name="dl_failed_space">Out of space</string>
     <string name="dl_no_space_sized">Needs %1$s but only %2$s is free.</string>
+    <string name="dl_retrying">Retrying…</string>
+    <string name="dl_queued_toast">“%1$s” added to the queue — downloads go one at a time.</string>
+    <string name="vod_remove_continue">Remove from Continue watching</string>
+    <string name="search_recent">Recent searches</string>
+    <string name="search_recent_clear">Clear</string>
+    <string name="phone_live_recent">Recent</string>
+    <string name="phone_live_recent_empty">Channels you watch show up here, most recent first.</string>
+    <string name="err_unreachable">Can\'t reach the server. Check this device is online and the address is right.</string>
+    <string name="err_timeout">The server stopped responding. It may be overloaded — try again in a moment.</string>
+    <string name="err_lost">Lost connection to the server.</string>
+    <string name="err_html">The server sent a web page instead of a stream. The link may have expired.</string>
+    <string name="err_malformed">This stream is malformed and can\'t be played.</string>
+    <string name="err_no_decoder">This device has no decoder for that format.</string>
+    <string name="err_unsupported">This device can\'t decode that video — often a 4K/HEVC copy. Try another version of it.</string>
+    <string name="err_behind">Playback fell too far behind the live edge. Reloading.</string>
+    <string name="err_401">The server rejected these credentials. Check the username and password.</string>
+    <string name="err_404">That item no longer exists on the server. Refresh the list.</string>
+    <string name="err_429">Too many requests. The provider is rate-limiting this device.</string>
+    <string name="err_451">Blocked for legal reasons in this region.</string>
+    <string name="err_403">The server refused this stream (403). Often the account is already streaming on another device, or the provider blocks this app’s User-Agent — you can change it in the source’s advanced settings.</string>
+    <string name="err_405">The server rejected the request (405). The address looks wrong for this provider — try switching the source between Xtream and playlist mode.</string>
+    <string name="err_5xx">The provider’s server is having problems (%1$d).</string>
+    <string name="err_http">The server returned HTTP %1$d.</string>
+    <string name="err_generic">Playback failed (%1$s).</string>
 </resources>

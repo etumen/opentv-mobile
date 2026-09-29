@@ -153,7 +153,12 @@ fun AddSourceScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Wraps on a phone: in one fixed row the third option was squeezed to an empty box.
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 FilterChip(
                     selected = kind == SourceKind.XTREAM,
                     onClick = { kind = SourceKind.XTREAM },

@@ -210,7 +210,9 @@ private fun DownloadRow(item: DownloadRepository.Item, onPlay: () -> Unit, onDel
 private fun statusText(item: DownloadRepository.Item): String = when (item.state) {
     DownloadRepository.State.DONE -> stringResource(R.string.dl_downloaded)
     DownloadRepository.State.RUNNING -> stringResource(R.string.dl_downloading, (item.progress * 100).toInt())
-    DownloadRepository.State.PAUSED -> stringResource(R.string.dl_paused)
+    DownloadRepository.State.PAUSED -> stringResource(
+        if (item.reason == android.app.DownloadManager.PAUSED_WAITING_TO_RETRY) R.string.dl_retrying else R.string.dl_paused,
+    )
     DownloadRepository.State.QUEUED -> stringResource(R.string.dl_queued)
     DownloadRepository.State.FAILED ->
         stringResource(if (item.outOfSpace) R.string.dl_failed_space else R.string.dl_failed)
@@ -220,6 +222,7 @@ private fun statusText(item: DownloadRepository.Item): String = when (item.state
 fun startMessage(context: android.content.Context, title: String, result: DownloadRepository.Start): String =
     when (result) {
         DownloadRepository.Start.Started -> context.getString(R.string.dl_started, title)
+        DownloadRepository.Start.Queued -> context.getString(R.string.dl_queued_toast, title)
         is DownloadRepository.Start.NoSpace ->
             if (result.neededBytes > 0) context.getString(
                 R.string.dl_no_space_sized,
@@ -247,7 +250,7 @@ fun DownloadControl(
     val start: () -> Unit = {
         scope.launch {
             val d = buildDownload()
-            val result = repo.enqueue(d, USER_AGENT)
+            val result = repo.enqueue(d)
             android.widget.Toast.makeText(context, startMessage(context, d.title, result), android.widget.Toast.LENGTH_LONG).show()
         }
     }
@@ -285,5 +288,3 @@ fun DownloadControl(
 const val KIND_MOVIE = "MOVIE"
 const val KIND_EPISODE = "EPISODE"
 
-/** Matches what the VOD player sends, so providers treat the download like playback. */
-private const val USER_AGENT = "OpenTV/0.1 (Android)"

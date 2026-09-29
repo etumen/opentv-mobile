@@ -5,6 +5,12 @@
  */
 package app.opentv.ui.vod
 
+import androidx.compose.material.icons.filled.Close
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import app.opentv.core.ServiceLocator
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.combinedClickable
 import app.opentv.ui.LayoutClass
 import app.opentv.ui.LocalLayoutClass
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -469,6 +475,9 @@ internal fun ContinueWatchingRow(
     items: List<VodViewModel.ResumeItem>,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
 ) {
+    val context = LocalContext.current
+    val graph = remember { ServiceLocator.get(context) }
+    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxWidth()) {
         SectionHeader(stringResource(R.string.vod_continue_watching))
         LazyRow(
@@ -476,16 +485,28 @@ internal fun ContinueWatchingRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(items, key = { it.mediaKey }) { item ->
-                ResumeCard(item) { onResume(item.mediaKey, item.streamUrl, item.title) }
+                ResumeCard(
+                    item,
+                    onClick = { onResume(item.mediaKey, item.streamUrl, item.title) },
+                    // Forgetting the saved position drops it from this row (it's a live query).
+                    onRemove = {
+                        scope.launch {
+                            graph.playbackPositions.delete(graph.settings.activeProfileId.value, item.mediaKey)
+                        }
+                    },
+                )
             }
         }
     }
 }
 
 /** A landscape resume thumbnail with a progress fill — a movie or an episode part-way through. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun ResumeCard(item: VodViewModel.ResumeItem, onClick: () -> Unit) {
+private fun ResumeCard(item: VodViewModel.ResumeItem, onClick: () -> Unit, onRemove: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
+    // Long-press (or long OK on a remote) opens a small menu to take it off Continue Watching.
+    var menu by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "resumeScale")
     Column(
         Modifier
@@ -493,9 +514,16 @@ private fun ResumeCard(item: VodViewModel.ResumeItem, onClick: () -> Unit) {
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.isFocused }
             .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = { menu = true })
             .padding(4.dp),
     ) {
+        androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(stringResource(R.string.vod_remove_continue)) },
+                leadingIcon = { Icon(Icons.Filled.Close, contentDescription = null) },
+                onClick = { menu = false; onRemove() },
+            )
+        }
         Box(
             Modifier
                 .fillMaxWidth()

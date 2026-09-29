@@ -229,7 +229,10 @@ object Routes {
     fun editSource(sourceId: Long) = "edit-source/$sourceId"
     fun person(name: String) = "person?name=${java.net.URLEncoder.encode(name, "UTF-8")}"
     fun vodPlayer(key: String, url: String, title: String, ua: String): String {
-        fun e(v: String) = java.net.URLEncoder.encode(v, "UTF-8")
+        // Strict percent-encoding (space = %20, '+' = %2B). Navigation decodes query arguments once;
+        // the old URLEncoder + second URLDecoder pass turned every '+' into a space — breaking
+        // titles like "A+ …" and any stream URL carrying a '+' in a token.
+        fun e(v: String) = android.net.Uri.encode(v)
         return "vod?key=${e(key)}&url=${e(url)}&title=${e(title)}&ua=${e(ua)}"
     }
 }
@@ -552,8 +555,8 @@ private fun OpenTvApp(isTelevision: Boolean) {
             }
 
             composable(Routes.VOD_PLAYER) { entry ->
-                fun arg(name: String) = entry.arguments?.getString(name)
-                    ?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty()
+                // Already decoded by Navigation — see Routes.vodPlayer.
+                fun arg(name: String) = entry.arguments?.getString(name).orEmpty()
                 VodPlayerScreen(
                     mediaKey = arg("key"),
                     streamUrl = arg("url"),

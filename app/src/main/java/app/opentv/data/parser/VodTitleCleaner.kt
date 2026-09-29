@@ -66,9 +66,9 @@ object VodTitleCleaner {
         "NF",                    // Netflix
         "AMZ", "AMZN", "PMV",    // Amazon Prime Video
         "DSNY", "DNSP", "D+",    // Disney+
-        "HBO", "HMAX",           // HBO / Max
-        "ATV", "ATVP",           // Apple TV+
-        "PMT",                   // Paramount+
+        "HBO", "HMAX", "MAX",    // HBO / Max
+        "ATV", "ATVP", "A+",     // Apple TV+
+        "PMT", "P+",             // Paramount+
         "HULU",                  // Hulu
         "PCOK",                  // Peacock
     )
@@ -211,6 +211,22 @@ val Movie.displayTitle: String get() = VodTitleCleaner.clean(name)
 
 /** The clean, display-ready title for a series. */
 val Series.displayTitle: String get() = VodTitleCleaner.clean(name)
+
+/**
+ * An episode's own title. Panels ship "4K-A+ - Sago Mini Friends - S01E01 - Pizza Please"; the row
+ * already shows S1E1 and sits under the show's name, so this peels the tags, the show name and the
+ * SxxEyy marker off the front — "Pizza Please". Falls back to the cleaned title if nothing's left.
+ */
+fun episodeDisplayTitle(raw: String, seriesTitle: String?): String {
+    val cleaned = VodTitleCleaner.clean(raw)
+    val edge = charArrayOf(' ', '-', '–', '—', ':', '|', '.')
+    var s = cleaned
+    val show = seriesTitle?.let { VodTitleCleaner.clean(it).replace(Regex("\\s*\\(\\d{4}\\)\\s*$"), "") }
+    if (!show.isNullOrBlank() && s.startsWith(show, ignoreCase = true)) s = s.substring(show.length)
+    s = s.trimStart(*edge)
+    s = s.replace(Regex("^[Ss]\\d{1,3}\\s*[Ee]\\d{1,4}\\b"), "").trimStart(*edge)
+    return s.ifBlank { cleaned }
+}
 
 /** The provider's origin tags stripped from the title (`EN 4K`, `DE`, `NF`), or null if none. */
 val Movie.sourceTag: String? get() = VodTitleCleaner.prefixTags(name).joinToString(" ").ifEmpty { null }

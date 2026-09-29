@@ -23,6 +23,7 @@ import app.opentv.data.model.SourceKind
 import app.opentv.data.model.StremioStream
 import app.opentv.data.model.StreamKind
 import app.opentv.data.parser.displayTitle
+import app.opentv.data.parser.VodTitleCleaner
 import app.opentv.data.parser.ChannelNameNormalizer
 import app.opentv.data.repo.CatalogRepository
 import app.opentv.data.repo.GenreGroup
@@ -216,6 +217,8 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
     /** null = All. Exposed so the sidebar can highlight the active entry. */
     val selectedCategory = MutableStateFlow<String?>(null)
     val favouritesOnly = MutableStateFlow(false)
+    /** The "Recent" list: channels played lately, most recent first. */
+    val recentsOnly = MutableStateFlow(false)
     /** Provider filter for the live guide. null = every source. Only surfaced when there's >1 source. */
     val selectedSource = MutableStateFlow<Long?>(null)
     private val query = MutableStateFlow("")
@@ -377,6 +380,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
         val query: String,
         val hiddenIds: Set<String>,
         val allowedIds: Set<String>? = null,
+        val recents: Boolean = false,
     )
 
     /**
@@ -427,14 +431,19 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
             RowsKey(ids, favs, q, hidden)
         }
             .combine(allowedCategoryIds) { key, allowed -> key.copy(allowedIds = allowed) }
+            .combine(recentsOnly) { key, recents -> key.copy(recents = recents) }
             .combine(selectedSource) { key, source -> key to source }
             .flatMapLatest { (key, source) ->
                 // Inside a category (or favourites) the query narrows that list; only from All does
                 // it search the whole catalogue.
                 val q = key.query.trim()
-                val scopedList = key.favs || key.categoryIds != null
+                val scopedList = key.recents || key.favs || key.categoryIds != null
                 val allowedIds = key.allowedIds
                 val baseFlow = when {
+                    // Recent: look up the played ids in order (a handful), newest first.
+                    key.recents -> settings.recentChannels.mapLatest { ids ->
+                        ids.mapNotNull { graph.catalogRepository.channel(it) }.filterNot { it.hidden }
+                    }
                     key.favs -> graph.catalogRepository.observeFavouriteChannels()
                     key.categoryIds != null -> graph.catalogRepository.observeChannelsIn(key.categoryIds)
                     q.isNotEmpty() -> graph.catalogRepository.searchChannels(q)
@@ -572,11 +581,19 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectCategory(id: String?) {
         favouritesOnly.value = false
+        recentsOnly.value = false
         selectedCategory.value = id
     }
 
     fun selectFavourites() {
         favouritesOnly.value = true
+        recentsOnly.value = false
+        selectedCategory.value = null
+    }
+
+    fun selectRecents() {
+        recentsOnly.value = true
+        favouritesOnly.value = false
         selectedCategory.value = null
     }
 
@@ -585,6 +602,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
         selectedSource.value = sourceId
         selectedCategory.value = null
         favouritesOnly.value = false
+        recentsOnly.value = false
     }
 
     fun search(text: String) { query.value = text }
@@ -814,9 +832,17 @@ class VodViewModel(app: Application) : AndroidViewModel(app) {
                 ResumeItem(pos.mediaKey, it.displayTitle, it.posterUrl, it.streamUrl, progress)
             }
             "ep" -> graph.catalogRepository.episode(id)?.let {
+                // "Show · S1E1 · Episode" reads cleanly; the raw provider title
+                // ("A+ - Show - S01E01 - Episode") doesn't fit a card.
+                val show = graph.catalogRepository.seriesByProviderId(it.sourceId, it.seriesId)
+                val episodeTitle = app.opentv.data.parser.episodeDisplayTitle(it.title, show?.name)
                 ResumeItem(
                     pos.mediaKey,
-                    it.title.ifBlank { "S${it.season} E${it.episodeNumber}" },
+                    listOfNotNull(
+                        show?.let { s -> VodTitleCleaner.clean(s.name).replace(Regex("\\s*\\(\\d{4}\\)$"), "") },
+                        "S${it.season}E${it.episodeNumber}",
+                        episodeTitle.takeIf { t -> t.isNotBlank() },
+                    ).joinToString(" · "),
                     it.stillUrl,
                     it.streamUrl,
                     progress,

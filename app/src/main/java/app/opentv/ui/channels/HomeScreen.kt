@@ -5,6 +5,7 @@
  */
 package app.opentv.ui.channels
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -123,6 +124,12 @@ fun HomeScreen(
     val graph = remember { ServiceLocator.get(context) }
     val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
     LaunchedEffect(isPhone) { viewModel.setCompactGuide(isPhone) }
+    // Phones open Live on the channels you actually watch (once per screen; a tap elsewhere sticks).
+    var openedOnRecents by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(isPhone) {
+        if (isPhone && !openedOnRecents && graph.settings.recentChannels.value.isNotEmpty()) viewModel.selectRecents()
+        openedOnRecents = true
+    }
     val settings = remember { graph.settings }
     val previewEnabled by settings.guidePreviewVideo.collectAsState()
     val channelLayout by settings.channelLayout.collectAsState()
@@ -133,6 +140,7 @@ fun HomeScreen(
     val rows by viewModel.rows.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val favouritesOnly by viewModel.favouritesOnly.collectAsState()
+    val recentsOnly by viewModel.recentsOnly.collectAsState()
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedSource.collectAsState()
     val windowStart by viewModel.windowStartMillis.collectAsState()
@@ -299,6 +307,13 @@ fun HomeScreen(
 
     val emptyContent: @Composable () -> Unit = {
         when {
+            recentsOnly -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    stringResource(R.string.phone_live_recent_empty),
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             favouritesOnly -> NoFavouritesState()
             // Work genuinely in progress: a sync is running, the catalogue check hasn't returned
             // yet, or channels ARE on disk and the guide is still building. Showing "No channels"
@@ -322,7 +337,9 @@ fun HomeScreen(
             onSetShownCategories = viewModel::setShownCategories,
             selectedCategory = selectedCategory,
             favouritesOnly = favouritesOnly,
+            recentsOnly = recentsOnly,
             onSelectSource = viewModel::selectSource,
+            onSelectRecents = viewModel::selectRecents,
             onSelectFavourites = viewModel::selectFavourites,
             onSelectCategory = viewModel::selectCategory,
             onQuery = viewModel::search,

@@ -59,6 +59,7 @@ class OpenTvApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         val graph = ServiceLocator.get(this)
+        app.opentv.player.PlaybackErrors.context = this
         SyncWorker.schedule(this)
 
         // When the normaliser has moved on since the catalogue was last processed, re-clean
@@ -95,6 +96,9 @@ class OpenTvApp : Application(), ImageLoaderFactory {
         if (graph.settings.nasAutoSync.value) {
             appScope.launch { runCatching { app.opentv.sync.NasSync(graph).sync() } }
         }
+
+        // A queue left mid-way (app killed, phone rebooted) picks up where it stopped.
+        appScope.launch { runCatching { graph.downloadRepository.pump() } }
 
         appScope.launch {
             val prefs = getSharedPreferences("opentv", MODE_PRIVATE)
