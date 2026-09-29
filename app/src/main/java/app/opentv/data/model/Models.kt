@@ -261,6 +261,9 @@ data class Programme(
     indices = [
         Index(value = ["sourceId", "streamId"], unique = true),
         Index(value = ["sourceId", "categoryId"]),
+        // "Recently added" and the derived feeds read newest-first; without this every such read
+        // sorted the entire library.
+        Index(value = ["addedMillis"]),
     ],
 )
 data class Movie(
@@ -300,6 +303,7 @@ data class Movie(
     indices = [
         Index(value = ["sourceId", "seriesId"], unique = true),
         Index(value = ["sourceId", "categoryId"]),
+        Index(value = ["addedMillis"]),
     ],
 )
 data class Series(
@@ -494,3 +498,18 @@ data class Reminder(
     /** Set once the alarm has fired, so a boot re-arm skips it and the list can grey it out. */
     val fired: Boolean = false,
 )
+
+/**
+ * Full-text index over film titles, kept in sync with [Movie] by Room's content triggers. Title
+ * search used `LIKE '%q%'`, a full scan of the whole library per keystroke — seconds on a 180k-film
+ * provider. FTS answers word-prefix queries ("matri*") from an index; unicode61 folds case and
+ * accents, so "accion" finds "Acción".
+ */
+@androidx.room.Fts4(contentEntity = Movie::class, tokenizer = androidx.room.FtsOptions.TOKENIZER_UNICODE61)
+@Entity(tableName = "movies_fts")
+data class MovieFts(val name: String)
+
+/** Full-text index over series titles; see [MovieFts]. */
+@androidx.room.Fts4(contentEntity = Series::class, tokenizer = androidx.room.FtsOptions.TOKENIZER_UNICODE61)
+@Entity(tableName = "series_fts")
+data class SeriesFts(val name: String)

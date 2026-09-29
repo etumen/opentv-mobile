@@ -66,6 +66,8 @@ class EpgRepository(
     private val sourceDao: SourceDao,
     private val api: XtreamApi,
     private val http: OkHttpClient,
+    /** Remembers when the matcher last ran (and its result) so a launch with nothing new skips it. */
+    private val prefs: android.content.SharedPreferences? = null,
 ) {
 
     data class SyncSummary(
@@ -162,6 +164,8 @@ class EpgRepository(
             var succeeded = 0
             var failed = 0
             var written = 0
+            // Feeds actually downloaded this pass (succeeded also counts fresh feeds it skipped).
+            var downloaded = 0
 
             for (feed in feedDao.enabled()) {
                 if (!force && nowUtcMillis - feed.lastSyncMillis < REFRESH_INTERVAL_MILLIS) {
@@ -171,6 +175,7 @@ class EpgRepository(
                 when (val result = syncFeed(feed, nowUtcMillis)) {
                     is FeedResult.Success -> {
                         succeeded++
+                        downloaded++
                         written += result.programmes
                         feedDao.markSynced(
                             feed.id,
@@ -190,12 +195,27 @@ class EpgRepository(
                 }
             }
 
-            if (succeeded > 0) {
+            if (downloaded > 0) {
                 programmeDao.deleteEndedBefore(nowUtcMillis - RETENTION_PAST_MILLIS)
                 guideChanged()
             }
 
-            val (matched, total) = runMatcher()
+            // The matcher walks every channel (50k+ on big providers) against every guide alias.
+            // It used to run on every launch; now only when its inputs changed — a guide landed,
+            // the channel catalogue re-synced since the last match, or the user forced a refresh.
+            val catalogueStamp = sourceDao.enabled().maxOfOrNull { it.lastCatalogSyncMillis } ?: 0L
+            val lastMatchedCatalogue = prefs?.getLong(PREF_MATCHED_CATALOGUE, -1L) ?: -1L
+            val (matched, total) =
+                if (force || downloaded > 0 || catalogueStamp != lastMatchedCatalogue) {
+                    runMatcher().also { (m, t) ->
+                        prefs?.edit()
+                            ?.putLong(PREF_MATCHED_CATALOGUE, catalogueStamp)
+                            ?.putInt(PREF_MATCHED, m)?.putInt(PREF_MATCH_TOTAL, t)
+                            ?.apply()
+                    }
+                } else {
+                    (prefs?.getInt(PREF_MATCHED, 0) ?: 0) to (prefs?.getInt(PREF_MATCH_TOTAL, 0) ?: 0)
+                }
             SyncSummary(succeeded, failed, written, matched, total)
         }
 
@@ -365,6 +385,9 @@ class EpgRepository(
 
     companion object {
         private const val TAG = "EpgRepository"
+        private const val PREF_MATCHED_CATALOGUE = "epg_matcher_catalogue_stamp"
+        private const val PREF_MATCHED = "epg_matcher_matched"
+        private const val PREF_MATCH_TOTAL = "epg_matcher_total"
 
         /** Writes per transaction. Large enough to be fast, small enough not to hold WAL open. */
         const val BATCH_SIZE = 500

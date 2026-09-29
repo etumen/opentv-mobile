@@ -846,12 +846,18 @@ class VodViewModel(app: Application) : AndroidViewModel(app) {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val movies: StateFlow<List<Movie>> = movieCategory
-        .flatMapLatest { graph.catalogRepository.observeMovies(it) }
+        // Only a picked category shows a full grid; "All" is the curated shelves. Observing the
+        // whole library for it (180k+ rows on big providers, re-read on every sync batch) was the
+        // single biggest drain on the database and memory, for a list nothing displayed.
+        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else graph.catalogRepository.observeMovies(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val series: StateFlow<List<Series>> = seriesCategory
-        .flatMapLatest { graph.catalogRepository.observeSeries(it) }
+        // Only a picked category shows a full grid; "All" is the curated shelves. Observing the
+        // whole library for it (180k+ rows on big providers, re-read on every sync batch) was the
+        // single biggest drain on the database and memory, for a list nothing displayed.
+        .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else graph.catalogRepository.observeSeries(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun selectMovieCategory(id: String?) { movieCategory.value = id }

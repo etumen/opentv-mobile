@@ -446,6 +446,15 @@ interface MovieDao {
     @Query("SELECT * FROM movies WHERE name LIKE '%' || :query || '%' ORDER BY name LIMIT :limit")
     fun search(query: String, limit: Int = 200): Flow<List<Movie>>
 
+    /** Word-prefix title search through [app.opentv.data.model.MovieFts]; [match] is an FTS query. */
+    @Query(
+        """
+        SELECT movies.* FROM movies JOIN movies_fts ON movies.id = movies_fts.docid
+        WHERE movies_fts MATCH :match ORDER BY movies.name LIMIT :limit
+        """
+    )
+    fun searchFts(match: String, limit: Int = 200): Flow<List<Movie>>
+
     /** Newest-first, for the "Recently Added" home row. Reactive so it fills in as VOD sync lands. */
     @Query("SELECT * FROM movies ORDER BY addedMillis DESC LIMIT :limit")
     fun observeRecentlyAdded(limit: Int): Flow<List<Movie>>
@@ -547,6 +556,15 @@ interface SeriesDao {
 
     @Query("SELECT * FROM series WHERE name LIKE '%' || :query || '%' ORDER BY name LIMIT :limit")
     fun search(query: String, limit: Int = 200): Flow<List<Series>>
+
+    /** Word-prefix title search through [app.opentv.data.model.SeriesFts]. */
+    @Query(
+        """
+        SELECT series.* FROM series JOIN series_fts ON series.id = series_fts.docid
+        WHERE series_fts MATCH :match ORDER BY series.name LIMIT :limit
+        """
+    )
+    fun searchFts(match: String, limit: Int = 200): Flow<List<Series>>
 
     /** Newest-first, for the "Recently Added" home row. Reactive so it fills in as VOD sync lands. */
     @Query("SELECT * FROM series ORDER BY addedMillis DESC LIMIT :limit")

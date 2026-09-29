@@ -5,6 +5,8 @@
  */
 package app.opentv.data.repo
 
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 import android.util.Log
 import app.opentv.core.AppSettings
 import app.opentv.data.db.CategoryDao
@@ -178,9 +180,27 @@ class CatalogRepository(
     fun searchChannelsIncludingHidden(query: String): Flow<List<Channel>> =
         channelDao.searchIncludingHidden(query)
 
-    fun searchMovies(query: String): Flow<List<Movie>> = movieDao.search(query)
+    /**
+     * Title search. The full-text index answers word-prefix queries instantly; when it finds nothing
+     * (a fragment from mid-word, like "atrix") it falls back to the old substring scan, so nothing
+     * that used to match stops matching.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun searchMovies(query: String): Flow<List<Movie>> {
+        val match = ftsMatch(query) ?: return movieDao.search(query)
+        return movieDao.searchFts(match).flatMapLatest { hits ->
+            if (hits.isEmpty()) movieDao.search(query) else flowOf(hits)
+        }
+    }
 
-    fun searchSeries(query: String): Flow<List<Series>> = seriesDao.search(query)
+    /** See [searchMovies]. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun searchSeries(query: String): Flow<List<Series>> {
+        val match = ftsMatch(query) ?: return seriesDao.search(query)
+        return seriesDao.searchFts(match).flatMapLatest { hits ->
+            if (hits.isEmpty()) seriesDao.search(query) else flowOf(hits)
+        }
+    }
 
     suspend fun channel(id: Long): Channel? = channelDao.byId(id)
 
@@ -938,4 +958,17 @@ class CatalogRepository(
          */
         const val NORMALIZER_VERSION = 2
     }
+}
+
+/**
+ * Turns what the user typed into an FTS MATCH query: every word must be present, each as a word
+ * prefix so partial typing works ("the matr" → `the* matr*`). FTS syntax characters are dropped so
+ * a stray quote or dash can't break the query. Null when nothing searchable is left.
+ */
+internal fun ftsMatch(query: String): String? {
+    val words = query.lowercase()
+        .split(Regex("[^\\p{L}\\p{Nd}]+"))
+        .filter { it.isNotEmpty() }
+    if (words.isEmpty()) return null
+    return words.joinToString(" ") { "$it*" }
 }

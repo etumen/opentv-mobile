@@ -111,6 +111,7 @@ object ServiceLocator {
                 sourceDao = database.sources(),
                 api = xtreamApi,
                 http = httpClient,
+                prefs = context.getSharedPreferences("opentv", Context.MODE_PRIVATE),
             )
         }
 
