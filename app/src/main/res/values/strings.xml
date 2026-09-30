@@ -340,7 +340,7 @@
     <string name="about_built_open_title">Built in the open</string>
     <string name="about_built_open_body">OpenTV is developed openly, with AI doing a large share of the coding under human direction — that\'s stated plainly, not hidden. Because it\'s open source, no single person going away can take it down: anyone can read every line, build it, and carry it on.</string>
     <string name="about_support_title">Support the project</string>
-    <string name="about_support_body">OpenTV Mobile is free and always will be. It is built on OpenTV — if it’s useful to you, the donation links below support the original OpenTV authors, whose work made this app possible.</string>
+    <string name="about_support_body">OpenTV Mobile is free and always will be — nothing is gated. If it’s useful to you and you’d like to chip in, a coffee on Ko-fi keeps the Android development going. It’s built on OpenTV, so the original authors’ links are here too.</string>
     <string name="about_sponsor_github">GitHub Sponsors</string>
     <string name="about_donate_paypal">Donate via PayPal</string>
     <string name="about_scan_to_donate">Scan to donate</string>
@@ -566,4 +566,6 @@
     <string name="phone_sort_number">By number</string>
     <string name="phone_remove_recent">Remove from Recent</string>
     <string name="about_based_on">Based on OpenTV (support its authors below)</string>
+    <string name="about_kofi">Buy me a coffee on Ko-fi</string>
+    <string name="about_support_original">Support the original OpenTV authors</string>
 </resources>

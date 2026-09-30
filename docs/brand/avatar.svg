@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="OpenTV Mobile">
+  <!-- Square avatar (GitHub crops it to a circle, so everything sits in the middle ~70%). -->
+  <rect width="512" height="512" fill="#07080C"/>
+  <g transform="translate(166,92) scale(1.45)">
+    <path d="M44 6 L62 24 M80 6 L62 24" stroke="#4B5DB8" stroke-width="9" stroke-linecap="round" fill="none"/>
+    <rect x="10" y="24" width="104" height="80" rx="16" fill="#7C93FF"/>
+    <path d="M52 46 L86 64 L52 82 Z" fill="#07080C"/>
+  </g>
+  <g font-family="Inter, Roboto, 'Helvetica Neue', Helvetica, Arial, sans-serif" text-anchor="middle">
+    <text x="256" y="352" font-size="64" font-weight="800" fill="#7C93FF">OpenTV</text>
+    <text x="262" y="398" font-size="28" font-weight="600" letter-spacing="10" fill="#9AA3B5">MOBILE</text>
+  </g>
+</svg>

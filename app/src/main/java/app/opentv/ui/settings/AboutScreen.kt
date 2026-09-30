@@ -135,15 +135,10 @@ fun AboutScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(12.dp))
-            LinkLine(stringResource(R.string.about_sponsor_github), "github.com/sponsors/legionnaireneyland")
+            // This app's own development first…
+            LinkLine(stringResource(R.string.about_kofi), "ko-fi.com/opentvmobile", url = "https://ko-fi.com/opentvmobile")
             Spacer(Modifier.height(12.dp))
-            LinkLine(
-                stringResource(R.string.about_donate_paypal),
-                "leetobin1982@gmail.com",
-                url = "https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP",
-            )
-            Spacer(Modifier.height(12.dp))
-            val donateQr = remember { QrCodes.render("https://github.com/sponsors/legionnaireneyland", 400) }
+            val donateQr = remember { QrCodes.render("https://ko-fi.com/opentvmobile", 400) }
             donateQr?.let { bmp ->
                 Image(
                     bitmap = bmp.asImageBitmap(),
@@ -157,6 +152,21 @@ fun AboutScreen(onBack: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            // …then the original OpenTV authors, whose work this app is built on.
+            Spacer(Modifier.height(20.dp))
+            Text(
+                stringResource(R.string.about_support_original),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.height(8.dp))
+            LinkLine(stringResource(R.string.about_sponsor_github), "github.com/sponsors/legionnaireneyland")
+            Spacer(Modifier.height(12.dp))
+            LinkLine(
+                stringResource(R.string.about_donate_paypal),
+                "leetobin1982@gmail.com",
+                url = "https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP",
+            )
         }
 
         Spacer(Modifier.height(16.dp))

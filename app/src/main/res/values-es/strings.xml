@@ -485,7 +485,7 @@
     <string name="settings_edit_provider_title">Editar proveedor</string>
     <string name="recset_pw_show">Mostrar contraseña</string>
     <string name="recset_pw_hide">Ocultar contraseña</string>
-    <string name="about_support_body">OpenTV Mobile es gratis y siempre lo será. Está construida sobre OpenTV: si te resulta útil, los enlaces de donación de abajo apoyan a los autores originales de OpenTV, cuyo trabajo hizo posible esta app.</string>
+    <string name="about_support_body">OpenTV Mobile es gratis y siempre lo será: no hay nada de pago. Si te resulta útil y quieres colaborar, un café en Ko-fi ayuda a seguir desarrollando la versión Android. Está construida sobre OpenTV, así que también tienes aquí los enlaces de sus autores originales.</string>
     <string name="about_sponsor_github">GitHub Sponsors</string>
     <string name="about_donate_paypal">Donar con PayPal</string>
     <string name="rec_watching_live_badge">Grabando — en directo</string>
@@ -515,4 +515,6 @@
     <string name="phone_sort_number">Por número</string>
     <string name="phone_remove_recent">Quitar de Recientes</string>
     <string name="about_based_on">Basado en OpenTV (puedes apoyar a sus autores abajo)</string>
+    <string name="about_kofi">Invítame a un café en Ko-fi</string>
+    <string name="about_support_original">Apoya a los autores originales de OpenTV</string>
 </resources>

@@ -11,6 +11,7 @@
   <a href="https://github.com/opentv-mobile/opentv-mobile/releases/latest"><img src="https://img.shields.io/github/v/release/opentv-mobile/opentv-mobile?label=download&color=7C93FF" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License: GPL v3"></a>
   <img src="https://img.shields.io/badge/Android-6.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 6.0+">
+  <a href="https://ko-fi.com/opentvmobile"><img src="https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=ko-fi&logoColor=white" alt="Ko-fi"></a>
 </p>
 
 No account. No subscription. No server of ours between you and your provider.
@@ -107,7 +108,11 @@ Stalker) and which phone is worth a lot. [Open an issue](https://github.com/open
 
 OpenTV Mobile is free and always will be — nothing is gated behind a payment.
 
-<!-- MAINTAINER_SUPPORT: donation link for OpenTV Mobile's own development goes here. -->
+If it's useful to you and you'd like to chip in, a coffee keeps the Android development going:
+
+<p align="center">
+  <a href="https://ko-fi.com/opentvmobile"><img src="https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white" alt="Support OpenTV Mobile on Ko-fi"></a>
+</p>
 
 If it's useful to you, please also consider supporting **the original OpenTV authors**, whose
 work this app is built on: [GitHub Sponsors](https://github.com/sponsors/legionnaireneyland) ·
