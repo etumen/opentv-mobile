@@ -98,7 +98,7 @@ source when Android asks). It installs as its own app — alongside OpenTV if yo
 ## Build it yourself
 
 ```bash
-git clone https://github.com/pablocesar87/opentv-mobile.git
+git clone https://github.com/opentv-mobile/opentv-mobile.git
 cd opentv-mobile
 ./gradlew assembleDebug
 ```

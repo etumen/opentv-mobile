@@ -167,11 +167,11 @@ fun AboutScreen(onBack: () -> Unit) {
                 "GNU General Public License v3.0",
                 url = "https://www.gnu.org/licenses/gpl-3.0.html",
             )
-            LinkLine(stringResource(R.string.about_source_code), "github.com/pablocesar87/opentv-mobile")
-            LinkLine(stringResource(R.string.about_report_bug), "github.com/pablocesar87/opentv-mobile/issues")
+            LinkLine(stringResource(R.string.about_source_code), "github.com/opentv-mobile/opentv-mobile")
+            LinkLine(stringResource(R.string.about_report_bug), "github.com/opentv-mobile/opentv-mobile/issues")
             // Credit where it is due: this app is built on OpenTV.
             LinkLine(stringResource(R.string.about_based_on), "github.com/opentvproject/opentv")
-            LinkLine(stringResource(R.string.about_install_page), "github.com/pablocesar87/opentv-mobile/releases")
+            LinkLine(stringResource(R.string.about_install_page), "github.com/opentv-mobile/opentv-mobile/releases")
         }
     }
 }
