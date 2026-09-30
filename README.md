@@ -1,160 +1,136 @@
-# OpenTV Mobile
+<p align="center">
+  <img src="docs/brand/logo.svg" alt="OpenTV Mobile" width="420">
+</p>
 
-**A free, open-source IPTV player built for Android phones** — portrait browsing, touch
-controls, offline downloads and fast search over huge catalogues.
+<p align="center">
+  <b>A free, open-source IPTV player built for Android phones.</b><br>
+  Portrait browsing · touch controls · offline downloads · instant search over huge catalogues
+</p>
+
+<p align="center">
+  <a href="https://github.com/opentv-mobile/opentv-mobile/releases/latest"><img src="https://img.shields.io/github/v/release/opentv-mobile/opentv-mobile?label=download&color=7C93FF" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License: GPL v3"></a>
+  <img src="https://img.shields.io/badge/Android-6.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 6.0+">
+</p>
 
 No account. No subscription. No server of ours between you and your provider.
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-
-> **Built on [OpenTV](https://github.com/opentvproject/opentv)** by the OpenTV contributors.
-> OpenTV is a d-pad-first player for Android TV; OpenTV Mobile started as a fork of it and
-> reworks the app around phones. All of OpenTV's history, copyright notices and licence are kept
-> — see [Credits](#credits). If this app is useful to you, consider supporting the original
-> authors: [GitHub Sponsors](https://github.com/sponsors/legionnaireneyland) ·
-> [PayPal](https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP).
-
-## What's different from OpenTV
-
-- **Phone shell** — top app bar and bottom tabs; browse in portrait, play in landscape
-- **Touch player** — swipe to zap channels or skip, brightness/volume drags, true full screen
-- **Live TV** — inline search scoped to the category, a category sheet with its own filter and
-  channel counts, *My categories* (e.g. only `ES|`), *Recent* channels, sort A–Z / by number
-- **Country-aware categories** — `ES| Sports` and `DE| Sports` stay apart
-- **Films & series** — origin tags on titles (`ES`, `EN 4K`, `NF`…) with filter chips, cleaned
-  titles, 3-column grids, Continue watching per tab
-- **Search** — system keyboard, instant full-text search over 180k+ titles, recent searches
-- **Downloads** — save films and episodes for offline viewing, queued one at a time for
-  single-connection providers
-- **Performance** — built and tested against a 55k-channel / 180k-film provider
-
-The TV layout still works: on Android TV and Google TV the app keeps OpenTV's d-pad interface.
-
-## Why this exists
-
-There is a recurring pattern in this corner of the app world. A promising IPTV player appears.
-It looks good. It sells a "lifetime" subscription. The lifetime turns out to be shorter than
-the buyer's — the developer burns out, or moves on, or simply stops replying, and everyone who
-paid is left with an app that no longer works and no way to fix it.
-
-The people affected are not helpless. They are often technical. What they lack is not skill
-but *access*: the code is closed, so nobody else can pick it up.
-
-OpenTV is the same category of app built so that cannot happen. The source is public and
-GPL-licensed. If the current maintainers vanish tomorrow, anyone can fork it, build it and
-keep it alive. That is the entire point.
-
-**OpenTV is not a fork or a decompilation of any existing app.** It is written from scratch.
-
-## What it does
-
-- **Live TV** from Xtream Codes logins and plain M3U/M3U8 playlists
-- **A guide that stays put** — XMLTV EPG that survives restarts, refreshes incrementally, and
-  never wipes itself
-- **Recording (DVR)** — record to the box, a USB drive or your NAS (SMB); schedule from the
-  guide; series-link a whole show; play back in-app with full seeking
-- **Catch-up / archive** where your provider offers it, plus **programme reminders**
-- **Movies and series** with resume and per-profile watch history
-- **Favourites, categories, hide channels, search**, picture-in-picture, aspect control, and
-  hand-off to an external player
-- **Free sync between your own devices** — favourites, watch history and NAS recordings, over
-  your wifi or Tailscale, with no server of ours
-- **Multiple languages** (fully translated to Spanish), a parental PIN, profiles, and self-updates
-- **D-pad first** — designed for a remote, works with a touchscreen
-- **One APK** for Android TV, Fire TV, phones and tablets
+> **Built on [OpenTV](https://github.com/opentvproject/opentv)** by the OpenTV contributors — a
+> d-pad-first player for Android TV. OpenTV Mobile started as a fork of it and reworks the app
+> around phones. See [Credits](#credits).
 
 ## Screenshots
 
-The live TV guide — programme grid, favourites, and a live preview:
+<p align="center">
+  <img src="docs/screenshots/phone/01-live-recent.jpg" width="24%" alt="Live TV — Recent channels">
+  <img src="docs/screenshots/phone/02-categories.jpg" width="24%" alt="Category sheet with channel counts">
+  <img src="docs/screenshots/phone/04-movies.jpg" width="24%" alt="Movies — Continue watching and shelves">
+  <img src="docs/screenshots/phone/06-search.jpg" width="24%" alt="Search with origin-tag filters">
+</p>
+<p align="center">
+  <img src="docs/screenshots/phone/05-movie-detail.jpg" width="24%" alt="Film page with Download">
+  <img src="docs/screenshots/phone/07-series-episodes.jpg" width="24%" alt="Series — download an episode or a whole season">
+  <img src="docs/screenshots/phone/08-downloads.jpg" width="24%" alt="Downloads">
+</p>
+<p align="center">
+  <img src="docs/screenshots/phone/03-player.jpg" width="74%" alt="Full-screen player with touch controls">
+</p>
 
-![OpenTV live TV guide](docs/screenshots/01-guide.png)
+## Features
 
-| Recordings &amp; reminders | Free cloud sync — your own NAS, no server |
-| :---: | :---: |
-| ![Recordings and reminders](docs/screenshots/02-recordings.png) | ![NAS cloud sync](docs/screenshots/03-cloud-sync.png) |
-| Movies &amp; series | Settings |
-| ![Movies](docs/screenshots/04-movies.png) | ![Settings](docs/screenshots/05-settings.png) |
+**Live TV**
+- Xtream Codes, M3U/M3U8 playlists and Stalker portals
+- Search inside the current category, or across every channel
+- Category sheet with its own filter and a channel count per category
+- **My categories** — keep only the groups you care about (e.g. just `ES|`)
+- Country-aware categories: `ES| Sports` and `DE| Sports` stay apart
+- **Recent** channels, favourites, sort by provider order / A–Z / number
+- Programme guide (XMLTV) with now/next on every channel
 
-Open-source through and through — the About screen carries the licence, the links, and a donation QR:
+**Player**
+- Portrait browsing, landscape playback, true full screen
+- Swipe left/right to change channel (or skip in films), drag for brightness and volume
+- Picture-in-picture, audio/subtitle tracks, aspect ratio, external player hand-off
 
-![About](docs/screenshots/06-about.png)
+**Films & series**
+- Origin tags on titles (`ES`, `EN 4K`, `NF`…) with one-tap filters — pick your language out of
+  "a thousand Matrixes"
+- Clean titles, three-column grids, per-tab **Continue watching**
+- Instant full-text search over 180k+ titles, recent searches
 
-## What it deliberately does not do
+**Downloads**
+- Save films and episodes for offline viewing (planes, trains, no signal)
+- Queued one at a time, so single-connection providers don't refuse them
+- Plays from the file, resumes where you left off
 
-- **No servers of ours, no web dashboard, no account.** Your provider credentials never leave
-  your device, and syncing happens directly between your devices — or through your own NAS —
-  never through a machine we run. This is a feature, not a gap — see
-  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the reasoning, and note that "sync your
-  channel list to *our* servers" is precisely the feature whose hosting bill makes a one-off
-  payment unsustainable.
-- **No content.** OpenTV is a player. You bring a service you already pay for. The project has
-  no affiliation with any provider and does not help you find one.
+**Also from OpenTV**
+- Recording (DVR) to the phone, USB or a NAS, catch-up where your provider offers it, reminders
+- Profiles, parental PIN, device-to-device sync with no server
+- Translated into many languages (fully in Spanish)
+
+On Android TV and Google TV the app keeps OpenTV's d-pad interface.
 
 ## Install
 
-Grab the APK from [Releases](../../releases) and open it on your phone (allow installs from that
-source when Android asks). It installs as its own app — alongside OpenTV if you have it.
+1. Download the APK from **[Releases](https://github.com/opentv-mobile/opentv-mobile/releases/latest)**.
+2. Open it on your phone and allow installs from that source when Android asks.
+3. Add your provider — OpenTV Mobile is a player; it doesn't supply any channels.
+
+It installs as its own app, alongside OpenTV if you have it. New versions are offered inside the
+app (Settings → About).
+
+## Privacy
+
+- **No servers of ours, no account, no analytics.** Your provider details stay on your device.
+- Sync between your own devices happens directly (or through your own NAS), never through a
+  machine we run. See [docs/PRIVACY.md](docs/PRIVACY.md) and
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Build it yourself
 
 ```bash
 git clone https://github.com/opentv-mobile/opentv-mobile.git
 cd opentv-mobile
-./gradlew assembleDebug
+./gradlew assembleDebug      # APK in app/build/outputs/apk/debug/
+./gradlew test               # unit tests
 ```
 
-You need JDK 17+ and the Android SDK (API 35). Android Studio will fetch it for you. The debug
-APK lands in `app/build/outputs/apk/debug/`.
-
-Run the tests:
-
-```bash
-./gradlew test
-```
-
-## How it was built
-
-OpenTV was written with **Claude**, Anthropic's AI assistant, working from a human's
-direction — the design decisions, the priorities, the "no server, ever" rule, and every
-review of what shipped were the maintainer's; Claude did the bulk of the drafting, wiring and
-debugging against that direction.
-
-That is relevant here for one specific reason: **it kept the project genuinely clean-room.**
-Nothing was decompiled or copied from any existing IPTV app. The code was written from public
-specifications (the Xtream Codes request format, the XMLTV and M3U formats, the Kodi catch-up
-tags) and from describing how other apps *behave* as a user — never from their source. That is
-the legal footing that lets anyone fork this and keep it alive, which is the whole point.
+You need JDK 17+ and the Android SDK (API 35); Android Studio fetches it for you.
 
 ## Contributing
 
-Please do. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Most IPTV
+bugs are provider- or device-specific, so a report that says which provider type (Xtream, M3U,
+Stalker) and which phone is worth a lot. [Open an issue](https://github.com/opentv-mobile/opentv-mobile/issues/new/choose).
 
-The project is explicitly looking for people who own devices the maintainers do not. Most
-"works for me" bugs in this category are device-specific — an Ugoos box, a first-gen ONN, a
-Fire Stick Lite — and a bug report from someone who owns one is worth more than a week of
-guessing. If a channel fails on your setup, [open an issue](../../issues/new/choose).
+## Support
+
+OpenTV Mobile is free and always will be — nothing is gated behind a payment.
+
+<!-- MAINTAINER_SUPPORT: donation link for OpenTV Mobile's own development goes here. -->
+
+If it's useful to you, please also consider supporting **the original OpenTV authors**, whose
+work this app is built on: [GitHub Sponsors](https://github.com/sponsors/legionnaireneyland) ·
+[PayPal](https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP)
 
 ## Credits
 
-OpenTV Mobile is a derivative of **[OpenTV](https://github.com/opentvproject/opentv)**, written
-by the OpenTV contributors and licensed GPL-3.0-or-later. The full commit history of OpenTV is
-preserved in this repository, and every file keeps its original copyright notice; changes made
-here are © the OpenTV Mobile contributors under the same licence.
+OpenTV Mobile is a derivative of **[OpenTV](https://github.com/opentvproject/opentv)**, written by
+the OpenTV contributors and licensed GPL-3.0-or-later. OpenTV's full commit history is preserved
+in this repository and every file keeps its original copyright notice; changes made here are
+© the OpenTV Mobile contributors under the same licence.
 
-The original project's donation links are kept on purpose: this app would not exist without
-their work. [GitHub Sponsors](https://github.com/sponsors/legionnaireneyland) ·
-[PayPal](https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP)
+Like OpenTV, it was written with **Claude**, Anthropic's AI assistant, working from a human's
+direction. OpenTV was built clean-room from public specifications (Xtream Codes, XMLTV, M3U) —
+nothing decompiled or copied from any existing IPTV app — and this project keeps to that.
 
 ## Licence
 
-[GPL-3.0-or-later](LICENSE).
-
-Chosen deliberately. GPL means anyone can take this code, but if they ship it they must ship
-their source too. Nobody gets to close it, rebrand it, and sell a lifetime subscription on top
-of work the community did for free.
+[GPL-3.0-or-later](LICENSE). Anyone can take this code, but if they ship it they must ship their
+source too.
 
 ## Legal
 
-OpenTV is a media player, comparable to VLC. It ships with no channels, no playlists, and no
-links to any. What you point it at, and whether you are entitled to, is between you and your
+OpenTV Mobile is a media player, comparable to VLC. It ships with no channels, no playlists and
+no links to any. What you point it at, and whether you are entitled to, is between you and your
 provider.

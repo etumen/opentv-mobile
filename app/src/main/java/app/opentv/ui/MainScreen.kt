@@ -5,6 +5,7 @@
  */
 package app.opentv.ui
 
+import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import app.opentv.R
@@ -285,13 +286,7 @@ private fun PhoneTopBar(
             modifier = Modifier.size(28.dp),
         )
         Spacer(Modifier.width(10.dp))
-        Text(
-            stringResource(R.string.app_name),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
-        )
+        Wordmark(Modifier.weight(1f))
         // Re-sync every provider: new channels, films and series, plus the guide. Spins while any
         // sync (manual or scheduled) runs, so a second tap can't stack another one.
         IconButton(onClick = onRefresh, enabled = !isSyncing) {
@@ -400,14 +395,7 @@ private fun NavRail(
             )
             if (expanded) {
                 Spacer(Modifier.width(12.dp))
-                Text(
-                    stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Wordmark()
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -466,5 +454,30 @@ private fun RailItem(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+/**
+ * The "OpenTV / MOBILE" wordmark: the upstream name, with what this app is set small underneath
+ * — credit to the project it grew from, and plain about being the phone edition.
+ */
+@Composable
+private fun Wordmark(modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(
+            "OpenTV",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.ExtraBold,
+            maxLines = 1,
+        )
+        Text(
+            "MOBILE",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            letterSpacing = 3.sp,
+            maxLines = 1,
+            modifier = Modifier.padding(start = 2.dp),
+        )
     }
 }

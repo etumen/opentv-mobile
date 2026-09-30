@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="160" viewBox="0 0 520 160" role="img" aria-label="OpenTV Mobile">
+  <!-- TV mark: same shapes as the app's launcher icon / TV banner. -->
+  <g transform="translate(8,14)">
+    <path d="M44 6 L62 24 M80 6 L62 24" stroke="#4B5DB8" stroke-width="9" stroke-linecap="round" fill="none"/>
+    <rect x="10" y="24" width="104" height="80" rx="16" fill="#7C93FF"/>
+    <path d="M52 46 L86 64 L52 82 Z" fill="#07080C"/>
+    <rect x="44" y="112" width="36" height="6" rx="3" fill="#7C93FF"/>
+  </g>
+  <g font-family="Inter, Roboto, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="146" y="92" font-size="68" font-weight="800" fill="#7C93FF">OpenTV</text>
+    <text x="150" y="134" font-size="30" font-weight="600" letter-spacing="10" fill="#9AA3B5">MOBILE</text>
+  </g>
+</svg>

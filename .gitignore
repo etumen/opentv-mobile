@@ -10,6 +10,8 @@ captures/
 *.apk
 *.aab
 *.keystore
+# Release signing key — never commit it (keep a backup outside this folder).
+*.jks
 !debug.keystore
 
 .claude/
