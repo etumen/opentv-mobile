@@ -562,7 +562,7 @@
     <string name="recset_pw_show">Εμφάνιση κωδικού</string>
     <string name="search_recent">Πρόσφατες αναζητήσεις</string>
     <string name="search_recent_clear">Απαλοιφή</string>
-    <string name="settings_auto_rotate_subtitle">Ανενεργό: περιήγηση σε κατακόρυφο, αναπαραγωγή σε οριζόντιο. Ενεργό: ακολουθεί την αυτόματη περιστροφή του κινητού παντού.</string>
+    <string name="settings_auto_rotate_subtitle">Το βίντεο παίζει πάντα σε οριζόντιο. Ενεργό: μενού και λίστες περιστρέφονται κι αυτά με το κινητό (τηρώντας το κλείδωμα περιστροφής).</string>
     <string name="settings_auto_rotate_title">Περιστροφή με το κινητό</string>
     <string name="settings_edit_provider_title">Επεξεργασία παρόχου</string>
     <string name="upd_available">Διαθέσιμη ενημέρωση</string>

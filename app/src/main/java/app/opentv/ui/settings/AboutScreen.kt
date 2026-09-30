@@ -13,13 +13,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,7 +35,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -72,37 +69,36 @@ fun AboutScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(20.dp))
 
         Section(stringResource(R.string.about_version)) {
-            Text("OpenTV ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleMedium)
+            Text("OpenTV Mobile ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(
-                    enabled = !checking,
-                    onClick = {
-                        checking = true
-                        updateLine = null
-                        scope.launch {
-                            val graph = ServiceLocator.get(context)
-                            val update = runCatching {
-                                UpdateChecker(graph.httpClient, BuildConfig.VERSION_NAME).check()
-                            }.getOrNull()
-                            updateLine = when {
-                                update != null -> context.getString(R.string.about_update_available, update.versionName)
-                                else -> context.getString(R.string.about_up_to_date)
-                            }
-                            // Raise the shared update prompt right here — UpdateGate overlays every
-                            // screen, so the install dialog appears over About immediately.
-                            if (update != null) {
-                                app.opentv.update.UpdateHub.state.value =
-                                    app.opentv.update.UpdateUiState.Available(update)
-                            }
-                            checking = false
+            OutlinedButton(
+                enabled = !checking,
+                onClick = {
+                    checking = true
+                    updateLine = null
+                    scope.launch {
+                        val graph = ServiceLocator.get(context)
+                        val update = runCatching {
+                            UpdateChecker(graph.httpClient, BuildConfig.VERSION_NAME).check()
+                        }.getOrNull()
+                        updateLine = when {
+                            update != null -> context.getString(R.string.about_update_available, update.versionName)
+                            else -> context.getString(R.string.about_up_to_date)
                         }
-                    },
-                ) { Text(if (checking) stringResource(R.string.about_checking) else stringResource(R.string.about_check_updates)) }
-                updateLine?.let {
-                    Spacer(Modifier.width(16.dp))
-                    Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                }
+                        // Raise the shared update prompt right here — UpdateGate overlays every
+                        // screen, so the install dialog appears over About immediately.
+                        if (update != null) {
+                            app.opentv.update.UpdateHub.state.value =
+                                app.opentv.update.UpdateUiState.Available(update)
+                        }
+                        checking = false
+                    }
+                },
+            ) { Text(if (checking) stringResource(R.string.about_checking) else stringResource(R.string.about_check_updates)) }
+            // Below the button, not beside it: translated lines are long enough to squeeze it.
+            updateLine?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
         }
 
@@ -202,7 +198,9 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 private fun LinkLine(label: String, value: String, url: String = "https://$value") {
     val context = LocalContext.current
     var focused by remember { mutableStateOf(false) }
-    Row(
+    // Label above value rather than beside it: translated labels run long, and side by side they
+    // squeezed the URL into a column one letter wide.
+    Column(
         Modifier
             .onFocusChanged { focused = it.isFocused }
             .clip(RoundedCornerShape(8.dp))
@@ -220,7 +218,7 @@ private fun LinkLine(label: String, value: String, url: String = "https://$value
             .padding(vertical = 6.dp, horizontal = 6.dp),
     ) {
         Text(
-            "$label:  ",
+            label,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
         )

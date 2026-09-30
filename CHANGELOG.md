@@ -6,7 +6,7 @@ OpenTV Mobile is a phone-first derivative of [OpenTV](https://github.com/opentvp
 0.11.8. Everything below is new relative to it; the TV interface is unchanged.
 
 - **Phone interface** — top bar and bottom tabs, portrait browsing with landscape playback (or
-  follow the phone's auto-rotate), a proper back arrow everywhere.
+  let menus and lists turn with the phone too), a proper back arrow everywhere.
 - **Touch player** — swipe to change channel or skip, drag for brightness/volume, true full screen.
 - **Live TV** — search scoped to the current category, category sheet with filter and channel
   counts, *My categories*, *Recent* channels, sort A–Z / by number, country-aware categories.

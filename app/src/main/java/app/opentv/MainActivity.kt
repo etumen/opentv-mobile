@@ -258,9 +258,11 @@ private fun OpenTvApp(isTelevision: Boolean) {
         if (layoutClass != LayoutClass.PHONE || activity == null) return@LaunchedEffect
         val playing = currentRoute == Routes.PLAYER || currentRoute == Routes.VOD_PLAYER
         activity.requestedOrientation = when {
-            // Follow the phone's own rotation lock / auto-rotate everywhere.
-            autoRotate -> ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+            // Video always plays landscape, even with the system rotation lock on — a portrait
+            // player is just a small picture with bars.
             playing -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            // Browse turning with the phone, still honouring the system rotation lock.
+            autoRotate -> ActivityInfo.SCREEN_ORIENTATION_FULL_USER
             else -> ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
         }
     }
