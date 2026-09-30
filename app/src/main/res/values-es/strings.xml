@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- OpenTV UI translation. Auto-assembled; English fallback for any gap. -->
 <resources>
-    <string name="app_name">OpenTV</string>
+    <string name="app_name">OpenTV Mobile</string>
     <string name="common_done">Listo</string>
     <string name="common_cancel">Cancelar</string>
     <string name="common_back">Atrás</string>
@@ -485,7 +485,7 @@
     <string name="settings_edit_provider_title">Editar proveedor</string>
     <string name="recset_pw_show">Mostrar contraseña</string>
     <string name="recset_pw_hide">Ocultar contraseña</string>
-    <string name="about_support_body">OpenTV es gratis y siempre lo será: no hay nada de pago. Si te resulta útil y quieres colaborar, GitHub Sponsors o una propina puntual ayudan a que sigan llegando novedades, arreglos y soporte, que salen de ratos libres. Totalmente opcional y muy agradecido.</string>
+    <string name="about_support_body">OpenTV Mobile es gratis y siempre lo será. Está construida sobre OpenTV: si te resulta útil, los enlaces de donación de abajo apoyan a los autores originales de OpenTV, cuyo trabajo hizo posible esta app.</string>
     <string name="about_sponsor_github">GitHub Sponsors</string>
     <string name="about_donate_paypal">Donar con PayPal</string>
     <string name="rec_watching_live_badge">Grabando — en directo</string>
@@ -514,4 +514,5 @@
     <string name="phone_sort_name">A–Z</string>
     <string name="phone_sort_number">Por número</string>
     <string name="phone_remove_recent">Quitar de Recientes</string>
+    <string name="about_based_on">Basado en OpenTV (puedes apoyar a sus autores abajo)</string>
 </resources>

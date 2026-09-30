@@ -11,11 +11,12 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "app.opentv"
+        // Its own id so it installs next to upstream OpenTV instead of replacing it.
+        applicationId = "app.opentvmobile"
         minSdk = 23
         targetSdk = 35
         versionCode = 20
-        versionName = "0.11.8"
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

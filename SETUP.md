@@ -1,3 +1,7 @@
+> **Note:** this guide comes from the original OpenTV project and describes *its* GitHub Pages
+> install page and release setup. For OpenTV Mobile, replace `opentvproject/opentv` with
+> `pablocesar87/opentv-mobile`; releases are published under this repository's Releases.
+
 # Getting this onto GitHub and onto your TV
 
 One-time setup. After this, every tagged release builds itself and appears on the install page

@@ -286,7 +286,7 @@ private fun PhoneTopBar(
         )
         Spacer(Modifier.width(10.dp))
         Text(
-            "OpenTV",
+            stringResource(R.string.app_name),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
@@ -395,13 +395,13 @@ private fun NavRail(
         ) {
             Image(
                 painter = painterResource(R.drawable.ic_opentv_logo),
-                contentDescription = "OpenTV",
+                contentDescription = stringResource(R.string.app_name),
                 modifier = Modifier.size(34.dp),
             )
             if (expanded) {
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "OpenTV",
+                    stringResource(R.string.app_name),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,

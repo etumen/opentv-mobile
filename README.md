@@ -1,32 +1,34 @@
-# OpenTV
+# OpenTV Mobile
 
-> **📱 This is a phone-focused fork of [opentvproject/opentv](https://github.com/opentvproject/opentv).**
-> Upstream OpenTV is built d-pad first for Android TV; this fork reworks the experience for
-> Android phones while leaving the TV layout untouched:
->
-> - Touch shell: top app bar and bottom tabs; browse in portrait, play in landscape
-> - Live TV: inline search scoped to the current category, category sheet with its own filter,
->   "My categories" to show only the groups you care about (e.g. just `ES|`)
-> - Categories keep their country prefix and no longer merge across countries
-> - Settings screens with a proper phone top bar
->
-> Everything else — and all the credit — belongs to the upstream project. Changes are kept
-> upstream-compatible so they can be offered back. Licensed GPL-3.0, like the original.
-
-**A free, open-source IPTV player for Android TV, Fire TV, phones and tablets.**
+**A free, open-source IPTV player built for Android phones** — portrait browsing, touch
+controls, offline downloads and fast search over huge catalogues.
 
 No account. No subscription. No server of ours between you and your provider.
 
-[![Build](https://github.com/opentvproject/opentv/actions/workflows/build.yml/badge.svg)](https://github.com/opentvproject/opentv/actions/workflows/build.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsors-ea4aaa.svg)](https://github.com/sponsors/legionnaireneyland)
 
----
+> **Built on [OpenTV](https://github.com/opentvproject/opentv)** by the OpenTV contributors.
+> OpenTV is a d-pad-first player for Android TV; OpenTV Mobile started as a fork of it and
+> reworks the app around phones. All of OpenTV's history, copyright notices and licence are kept
+> — see [Credits](#credits). If this app is useful to you, consider supporting the original
+> authors: [GitHub Sponsors](https://github.com/sponsors/legionnaireneyland) ·
+> [PayPal](https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP).
 
-> **Support OpenTV** — it's free and always will be. If it saved you from a dead "lifetime"
-> app, you can chip in via **[GitHub Sponsors](https://github.com/sponsors/legionnaireneyland)**
-> or **[PayPal](https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP)**.
-> Entirely optional; the app is never paywalled.
+## What's different from OpenTV
+
+- **Phone shell** — top app bar and bottom tabs; browse in portrait, play in landscape
+- **Touch player** — swipe to zap channels or skip, brightness/volume drags, true full screen
+- **Live TV** — inline search scoped to the category, a category sheet with its own filter and
+  channel counts, *My categories* (e.g. only `ES|`), *Recent* channels, sort A–Z / by number
+- **Country-aware categories** — `ES| Sports` and `DE| Sports` stay apart
+- **Films & series** — origin tags on titles (`ES`, `EN 4K`, `NF`…) with filter chips, cleaned
+  titles, 3-column grids, Continue watching per tab
+- **Search** — system keyboard, instant full-text search over 180k+ titles, recent searches
+- **Downloads** — save films and episodes for offline viewing, queued one at a time for
+  single-connection providers
+- **Performance** — built and tested against a 55k-channel / 180k-film provider
+
+The TV layout still works: on Android TV and Google TV the app keeps OpenTV's d-pad interface.
 
 ## Why this exists
 
@@ -90,32 +92,14 @@ Open-source through and through — the About screen carries the licence, the li
 
 ## Install
 
-**→ [Install page](https://opentvproject.github.io/opentv/)** — step-by-step for Chromecast with
-Google TV, Android TV boxes, Fire TV Sticks, and phones.
-
-On a TV, the quickest route is the **[Downloader app](https://www.aftvnews.com/downloader/)** —
-enter the code:
-
-```
-6398449
-```
-
-That code (or `aftv.news/6398449` in a browser) always points at the newest APK, so it never
-goes stale. On a phone, the [install page](https://opentvproject.github.io/opentv/) is a
-one-tap download. Or grab the APK straight from [Releases](../../releases).
-
-Every release is built by GitHub Actions from a tagged commit, and the workflow that built it
-is public — you can check the APK against the source, or rebuild it yourself, rather than
-trusting anyone's word.
-
-New to this? [SETUP.md](SETUP.md) walks through getting the repo, the install page and the
-first build running.
+Grab the APK from [Releases](../../releases) and open it on your phone (allow installs from that
+source when Android asks). It installs as its own app — alongside OpenTV if you have it.
 
 ## Build it yourself
 
 ```bash
-git clone https://github.com/opentvproject/opentv.git
-cd opentv
+git clone https://github.com/pablocesar87/opentv-mobile.git
+cd opentv-mobile
 ./gradlew assembleDebug
 ```
 
@@ -150,17 +134,16 @@ The project is explicitly looking for people who own devices the maintainers do 
 Fire Stick Lite — and a bug report from someone who owns one is worth more than a week of
 guessing. If a channel fails on your setup, [open an issue](../../issues/new/choose).
 
-## Supporting the project
+## Credits
 
-OpenTV is free and always will be. There is nothing to buy, no premium tier, and no lifetime
-subscription — the failure mode this project was built in response to is a promise nobody
-could keep, so we are not making one.
+OpenTV Mobile is a derivative of **[OpenTV](https://github.com/opentvproject/opentv)**, written
+by the OpenTV contributors and licensed GPL-3.0-or-later. The full commit history of OpenTV is
+preserved in this repository, and every file keeps its original copyright notice; changes made
+here are © the OpenTV Mobile contributors under the same licence.
 
-If it saves you money or annoyance and you want to say thanks, you can sponsor the project via
-[GitHub Sponsors](https://github.com/sponsors/legionnaireneyland) or
+The original project's donation links are kept on purpose: this app would not exist without
+their work. [GitHub Sponsors](https://github.com/sponsors/legionnaireneyland) ·
 [PayPal](https://www.paypal.com/donate/?business=leetobin1982@gmail.com&item_name=Support+OpenTV&no_recurring=0&currency_code=GBP)
-— see [.github/FUNDING.yml](.github/FUNDING.yml). Tips fund nothing except spare-evening development;
-nobody is owed a feature for one, and nothing is gated behind one.
 
 ## Licence
 
