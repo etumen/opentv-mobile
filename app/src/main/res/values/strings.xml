@@ -13,8 +13,8 @@
     <string name="common_stop">Stop</string>
     <string name="common_delete">Delete</string>
     <string name="common_selected">Selected</string>
-    <string name="exit_title">Leave OpenTV?</string>
-    <string name="exit_body">You\'ll go back to your TV\'s home screen.</string>
+    <string name="exit_title">Leave OpenTV Mobile?</string>
+    <string name="exit_body">You\'ll go back to your home screen.</string>
     <string name="exit_confirm">Leave</string>
     <string name="exit_cancel">Stay</string>
     <string name="common_favourite">Favourite</string>
@@ -80,7 +80,7 @@
     <string name="guide_pager_now">Now</string>
     <string name="guide_pager_later">Later</string>
 
-    <!-- ============================ Recordings & reminders ============================ -->
+    <!-- ============================ Recordings &amp; reminders ============================ -->
     <string name="rec_recording_stopped">Recording stopped</string>
     <string name="rec_recording_started_see_tab">● Recording %1$s — see the Recordings tab</string>
     <string name="rec_stop_recording">■ Stop recording</string>
@@ -105,12 +105,12 @@
     <string name="rec_notification_one">Recording 1 programme</string>
     <string name="rec_notification_many">Recording %1$d programmes</string>
     <string name="rec_channel_name">Recording</string>
-    <string name="rec_channel_desc">Shown while OpenTV is recording</string>
+    <string name="rec_channel_desc">Shown while OpenTV Mobile is recording</string>
     <string name="rec_error_nothing">Nothing was recorded</string>
     <string name="rec_error_usb_no_folder">No USB folder chosen. Open Recording settings and pick a folder on your drive.</string>
     <string name="rec_error_usb_unavailable">USB drive not available. Re-plug the drive and choose the folder again in Recording settings.</string>
     <string name="rec_background_prompt_title">Keep recording when you leave?</string>
-    <string name="rec_background_prompt_body">Android may stop this recording when the screen sleeps or you leave OpenTV. Allow OpenTV to ignore battery optimisation so recordings keep running, even in standby — the way a set-top box does.</string>
+    <string name="rec_background_prompt_body">Android may stop this recording when the screen sleeps or you leave OpenTV Mobile. Allow OpenTV Mobile to ignore battery optimisation so recordings keep running, even in standby — the way a set-top box does.</string>
     <string name="rec_background_prompt_allow">Allow</string>
     <string name="rec_background_prompt_not_now">Not now</string>
 
@@ -139,7 +139,7 @@
     <string name="settings_providers_subtitle">Add, remove and re-test your IPTV sources</string>
     <string name="settings_addons_title">Add-ons (Stremio)</string>
     <string name="settings_addons_subtitle">Play from Stremio add-ons you set up yourself</string>
-    <string name="addons_note">Add a Stremio add-on by pasting its manifest URL. OpenTV ships with none — you bring your own. If the add-on is debrid-backed, set your debrid key up on the add-on\'s own site and paste the personalised URL it gives you; your key stays there, never in OpenTV.</string>
+    <string name="addons_note">Add a Stremio add-on by pasting its manifest URL. OpenTV Mobile ships with none — you bring your own. If the add-on is debrid-backed, set your debrid key up on the add-on\'s own site and paste the personalised URL it gives you; your key stays there, never in OpenTV Mobile.</string>
     <string name="addons_url_label">Add-on manifest URL</string>
     <string name="addons_add">Add</string>
     <string name="addons_checking">Checking…</string>
@@ -162,7 +162,7 @@
     <string name="settings_about_title">About</string>
     <string name="settings_about_subtitle">Version, updates, licence and links</string>
 
-    <!-- ============================ Display & playback settings ============================ -->
+    <!-- ============================ Display &amp; playback settings ============================ -->
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_system">Follow system</string>
     <string name="settings_theme_dark">Dark</string>
@@ -252,7 +252,7 @@
     <string name="recset_usb_change">Change folder</string>
     <string name="recset_usb_saving_to">Saving to: %1$s</string>
     <string name="recset_usb_none">No folder chosen yet</string>
-    <string name="recset_usb_hint">Plug in a USB drive or external storage formatted exFAT or FAT32, then choose a folder on it. Recordings are written straight to that folder and still play back and delete inside OpenTV.</string>
+    <string name="recset_usb_hint">Plug in a USB drive or external storage formatted exFAT or FAT32, then choose a folder on it. Recordings are written straight to that folder and still play back and delete inside OpenTV Mobile.</string>
     <string name="recset_usb_need_folder">Choose a folder before saving to USB.</string>
     <string name="recset_usb_no_picker">No folder picker is available on this device.</string>
     <string name="recset_nas_connection">NAS connection</string>
@@ -287,9 +287,9 @@
     <string name="recset_background_allowed">Allowed</string>
     <string name="recset_background_not_allowed">Not allowed</string>
     <string name="recset_background_fix">Fix</string>
-    <string name="recset_background_desc">Android may stop recordings when the device sleeps or you leave OpenTV, unless OpenTV is allowed to ignore battery optimisation. Allowing it keeps recordings running even in standby, like a set-top box.</string>
+    <string name="recset_background_desc">Android may stop recordings when the device sleeps or you leave OpenTV Mobile, unless OpenTV Mobile is allowed to ignore battery optimisation. Allowing it keeps recordings running even in standby, like a set-top box.</string>
     <string name="recset_background_on_title">Background recording is on</string>
-    <string name="recset_background_on_desc">Recordings will keep running when you leave OpenTV or the TV goes to sleep.</string>
+    <string name="recset_background_on_desc">Recordings will keep running when you leave OpenTV Mobile or the TV goes to sleep.</string>
     <string name="recset_background_toast">Background recording enabled — recordings will keep going in the background.</string>
 
     <!-- ============================ TV guide (EPG) settings ============================ -->
@@ -302,7 +302,7 @@
     <string name="epg_add_guide">Add guide</string>
 
     <!-- ============================ Sync watch history ============================ -->
-    <string name="sync_desc">Copy your continue-watching between two OpenTV devices over your own wifi — nothing leaves the house, and no account is involved.</string>
+    <string name="sync_desc">Copy your continue-watching between two OpenTV Mobile devices over your own wifi — nothing leaves the house, and no account is involved.</string>
     <string name="sync_share_from_here">Share from here</string>
     <string name="sync_receive">Receive</string>
     <string name="sync_ready_to_share">Ready to share</string>
@@ -329,7 +329,7 @@
     <string name="sync_nas_auto">Auto-sync when the app opens</string>
 
     <!-- ============================ About ============================ -->
-    <string name="about_title">About OpenTV</string>
+    <string name="about_title">About OpenTV Mobile</string>
     <string name="about_version">Version</string>
     <string name="about_update_available">Update available: %1$s — see the prompt to install.</string>
     <string name="about_up_to_date">You\'re on the latest version.</string>
@@ -338,7 +338,7 @@
     <string name="about_what_is_title">What it is</string>
     <string name="about_what_is_body">A free, open-source IPTV player for Android TV, Fire TV and phones. It\'s a player only — it doesn\'t supply channels; you connect the service you already pay for. Nothing you enter leaves your device except to talk to your own provider.</string>
     <string name="about_built_open_title">Built in the open</string>
-    <string name="about_built_open_body">OpenTV is developed openly, with AI doing a large share of the coding under human direction — that\'s stated plainly, not hidden. Because it\'s open source, no single person going away can take it down: anyone can read every line, build it, and carry it on.</string>
+    <string name="about_built_open_body">OpenTV Mobile is developed openly, with AI doing a large share of the coding under human direction — that\'s stated plainly, not hidden. Because it\'s open source, no single person going away can take it down: anyone can read every line, build it, and carry it on.</string>
     <string name="about_support_title">Support the project</string>
     <string name="about_support_body">OpenTV Mobile is free and always will be — nothing is gated. If it’s useful to you and you’d like to chip in, a coffee on Ko-fi keeps the Android development going. It’s built on OpenTV, so the original authors’ links are here too.</string>
     <string name="about_sponsor_github">GitHub Sponsors</string>
@@ -354,7 +354,7 @@
     <string name="onboarding_default_provider_name">My provider</string>
     <string name="onboarding_default_playlist_name">My playlist</string>
     <string name="onboarding_add_provider_title">Add your provider</string>
-    <string name="onboarding_add_provider_desc">OpenTV is a player. It doesn\'t supply channels — you connect the service you already pay for.</string>
+    <string name="onboarding_add_provider_desc">OpenTV Mobile is a player. It doesn\'t supply channels — you connect the service you already pay for.</string>
     <string name="onboarding_xtream_login">Xtream Codes login</string>
     <string name="onboarding_m3u_url">M3U playlist URL</string>
     <string name="onboarding_stalker_portal">Stalker portal</string>
@@ -374,7 +374,7 @@
     <string name="onboarding_working">Working…</string>
     <string name="onboarding_save_load">Save and load</string>
     <string name="onboarding_use_phone">Use my phone instead</string>
-    <string name="onboarding_privacy_note">Your provider details are stored on this device only. OpenTV has no account system and no server of its own — nothing you type here is sent anywhere except to your provider.</string>
+    <string name="onboarding_privacy_note">Your provider details are stored on this device only. OpenTV Mobile has no account system and no server of its own — nothing you type here is sent anywhere except to your provider.</string>
 
     <!-- ============================ Phone pairing ============================ -->
     <string name="pairing_stopped">Pairing stopped</string>
@@ -422,7 +422,7 @@
     <string name="kbd_paste">Paste</string>
     <string name="kbd_clipboard_empty">Nothing to paste</string>
 
-    <!-- ============================ Movies & shows (VOD) ============================ -->
+    <!-- ============================ Movies &amp; shows (VOD) ============================ -->
     <string name="vod_loading_movies">Loading movies</string>
     <string name="vod_no_movies">No movies</string>
     <string name="vod_no_movies_provider">This provider didn\'t return any movies.</string>
@@ -568,4 +568,62 @@
     <string name="about_based_on">Based on OpenTV (support its authors below)</string>
     <string name="about_kofi">Buy me a coffee on Ko-fi</string>
     <string name="about_support_original">Support the original OpenTV authors</string>
+    <string name="msg_saving_source">Saving source…</string>
+    <string name="msg_save_source_failed">Could not save source.</string>
+    <string name="msg_loading_channels">Loading channels…</string>
+    <string name="msg_loaded_channels">Loaded %1$d channels. The guide is loading in the background; Movies and Shows load when you open them.</string>
+    <string name="msg_building_guide">Building the TV guide…</string>
+    <string name="msg_guide_ready">Guide ready — matched %1$d of %2$d channels.</string>
+    <string name="msg_channels_no_guide">Channels ready. No guide data matched yet — add a free guide under Guide settings.</string>
+    <string name="msg_refreshing">Refreshing…</string>
+    <string name="msg_refreshed_ok">Refreshed %1$d channels, guide matched %2$d of %3$d.</string>
+    <string name="msg_refreshed_problems">Refreshed %1$d channels, %2$d problem(s) — see Guide settings.</string>
+    <string name="msg_building_guide_short">Building the guide…</string>
+    <string name="msg_loading_small">Loading %1$d channels — a small one, this\'ll be quick.</string>
+    <string name="msg_loading_medium">Loading %1$d channels — a fair few, give me a moment…</string>
+    <string name="msg_loading_big">Loading %1$d channels — a big one, bear with me…</string>
+    <string name="msg_downloading_guides">Downloading guides…</string>
+    <string name="msg_guide_matched">Guide matched %1$d of %2$d channels</string>
+    <string name="msg_feeds_failed"> · %1$d feed(s) failed</string>
+    <string name="msg_loading_vod">Loading movies &amp; shows…</string>
+    <string name="msg_sync_failed">Sync failed.</string>
+    <string name="msg_connected">Connected</string>
+    <string name="msg_connected_as"> as %1$s</string>
+    <string name="msg_connections"> · %1$d connection(s)</string>
+    <string name="msg_expires"> · expires %1$s</string>
+    <string name="msg_playlist_valid">Playlist address looks valid. It will be checked on first sync.</string>
+    <string name="msg_portal_ok">Portal accepted the MAC address. Loading channels…</string>
+    <string name="err_catalogue_download">The catalogue could not be downloaded.</string>
+    <string name="err_no_channels_xtream">The server returned no channels. The account may have no package assigned.</string>
+    <string name="err_no_channels_stalker">The portal returned no channels. The MAC may not be authorised, or its package is empty.</string>
+    <string name="err_playlist_http">Playlist download failed (HTTP %1$d).</string>
+    <string name="err_playlist_empty">The playlist was empty.</string>
+    <string name="err_playlist_no_channels">No channels found in that playlist. Check the URL points at an M3U file.</string>
+    <string name="err_guide_empty">Downloaded, but contained no programmes.</string>
+    <string name="err_download_failed">Download failed.</string>
+    <string name="err_no_account_info">The server did not return account information.</string>
+    <string name="err_account_status">This account is %1$s.</string>
+    <string name="err_credentials">Username or password rejected by the server.</string>
+    <string name="err_guide_http">Guide download failed (HTTP %1$d).</string>
+    <string name="err_guide_empty_server">The server returned an empty guide.</string>
+    <string name="err_empty_response">The server returned an empty response.</string>
+    <string name="err_not_catalogue">The server replied with something that is not a valid catalogue. Check the address and port are correct.</string>
+    <string name="err_http_auth">The server refused the request (HTTP %1$d). The username or password may be wrong, or the provider may be blocking this app\'s User-Agent — try changing it in the source\'s advanced settings.</string>
+    <string name="err_http_404">No Xtream API at that address (HTTP 404). Check the URL and port.</string>
+    <string name="err_http_405_x">The server rejected the request method (HTTP 405). This usually means the address points at a plain playlist rather than an Xtream panel.</string>
+    <string name="err_http_429_x">The server is rate-limiting this device (HTTP 429). Try again shortly.</string>
+    <string name="err_http_5xx_x">The provider\'s server is having problems (HTTP %1$d).</string>
+    <string name="err_mac_needed">This portal needs a MAC address (e.g. 00:1A:79:xx:xx:xx).</string>
+    <string name="err_mac_rejected">The portal didn\'t accept this MAC address, or the URL is wrong.</string>
+    <string name="upd_update">Update</string>
+    <string name="upd_later">Later</string>
+    <string name="upd_available">Update available</string>
+    <string name="upd_downloading">Downloading update…</string>
+    <string name="upd_retry">Retry</string>
+    <string name="upd_close">Close</string>
+    <string name="upd_failed">Update failed</string>
+    <string name="upd_failed_body">Could not download the update. Check the connection and try again.</string>
+    <string name="upd_available_body">%1$s %2$s is available. You have %3$s.</string>
+    <string name="settings_auto_rotate_title">Rotate with the phone</string>
+    <string name="settings_auto_rotate_subtitle">Off: browse in portrait, play in landscape. On: follow the phone’s auto-rotate everywhere.</string>
 </resources>

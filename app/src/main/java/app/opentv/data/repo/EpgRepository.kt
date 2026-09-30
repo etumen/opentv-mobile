@@ -5,6 +5,8 @@
  */
 package app.opentv.data.repo
 
+import app.opentv.R
+import app.opentv.core.AppText
 import android.util.Log
 import app.opentv.data.db.ChannelDao
 import app.opentv.data.db.EpgChannelAliasDao
@@ -264,7 +266,7 @@ class EpgRepository(
                 }
 
                 if (written == 0 && stats.programmeCount == 0) {
-                    return FeedResult.Failed("Downloaded, but contained no programmes.")
+                    return FeedResult.Failed(AppText.get(R.string.err_guide_empty))
                 }
                 return FeedResult.Success(written, stats.channelCount)
             }
@@ -273,7 +275,7 @@ class EpgRepository(
         } catch (e: Exception) {
             // Deliberately no cleanup. Whatever was written is newer than what was there,
             // and what was there is still there.
-            return FeedResult.Failed(e.message ?: "Download failed.")
+            return FeedResult.Failed(e.message ?: AppText.get(R.string.err_download_failed))
         }
     }
 

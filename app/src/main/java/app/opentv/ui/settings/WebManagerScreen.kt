@@ -5,6 +5,10 @@
  */
 package app.opentv.ui.settings
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import app.opentv.ui.LocalLayoutClass
+import app.opentv.ui.LayoutClass
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -66,7 +70,11 @@ fun WebManagerScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+    val phone = LocalLayoutClass.current == LayoutClass.PHONE
+    Box(
+        Modifier.fillMaxSize().then(if (phone) Modifier.screenPadding().verticalScroll(rememberScrollState()) else Modifier.padding(32.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
         when (val current = state) {
             is ManagerServer.State.Listening -> Listening(current.session, onBack)
 
@@ -95,13 +103,16 @@ fun WebManagerScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun Listening(session: ManagerServer.Session, onBack: () -> Unit) {
     // Generated once per session — encoding is not free and the content does not change.
     val qr = remember(session.url) { QrCodes.render(session.url, QR_SIZE_PX) }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    // Side by side on a TV; stacked (QR above, text below) on a narrow phone screen.
+    val phone = LocalLayoutClass.current == LayoutClass.PHONE
+    androidx.compose.foundation.layout.FlowRow(
+        verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalArrangement = Arrangement.spacedBy(48.dp),
     ) {
         if (qr != null) {
@@ -109,7 +120,7 @@ private fun Listening(session: ManagerServer.Session, onBack: () -> Unit) {
                 bitmap = qr.asImageBitmap(),
                 contentDescription = stringResource(R.string.webmanager_qr_desc),
                 modifier = Modifier
-                    .size(300.dp)
+                    .size(if (phone) 220.dp else 300.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color.White)
                     .padding(12.dp),
@@ -117,7 +128,10 @@ private fun Listening(session: ManagerServer.Session, onBack: () -> Unit) {
         }
 
         Column(Modifier.widthIn(max = 520.dp)) {
-            Text(stringResource(R.string.webmanager_title), style = MaterialTheme.typography.displaySmall)
+            Text(
+                stringResource(R.string.webmanager_title),
+                style = if (phone) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.displaySmall,
+            )
             Spacer(Modifier.height(12.dp))
             Text(
                 stringResource(R.string.webmanager_desc),

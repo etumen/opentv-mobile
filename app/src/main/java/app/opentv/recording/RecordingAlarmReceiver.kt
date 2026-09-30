@@ -156,7 +156,11 @@ class RecordingAlarmReceiver : BroadcastReceiver() {
         safeNotify(context, WARN_NOTIFICATION_BASE + rec.id.toInt(), builder.build())
     }
 
+    // Permission is checked via NotificationPermission.granted() (lint can't see through it).
+    @android.annotation.SuppressLint("MissingPermission")
     private fun safeNotify(context: Context, id: Int, notification: Notification) {
+        // Without the Android 13+ permission the post is dropped anyway; skip it explicitly.
+        if (!app.opentv.core.NotificationPermission.granted(context)) return
         runCatching { NotificationManagerCompat.from(context).notify(id, notification) }
     }
 

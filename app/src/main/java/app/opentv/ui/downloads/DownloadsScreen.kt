@@ -248,6 +248,8 @@ fun DownloadControl(
     val item by remember(mediaKey) { repo.observe(mediaKey) }.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
     val start: () -> Unit = {
+        // "Download finished" is a notification (Android 13+ needs the permission).
+        app.opentv.core.NotificationPermission.askIfNeeded(context)
         scope.launch {
             val d = buildDownload()
             val result = repo.enqueue(d)

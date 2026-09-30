@@ -5,6 +5,7 @@
  */
 package app.opentv.ui
 
+import app.opentv.core.AppText
 import app.opentv.core.AppSettings
 import app.opentv.data.model.shownName
 import android.app.Application
@@ -116,16 +117,16 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
     /** Saves, then immediately pulls the catalogue so the user sees channels, not a spinner. */
     fun saveAndSync(draft: Source, onDone: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(syncing = true, syncMessage = "Saving source…")
+            _ui.value = _ui.value.copy(syncing = true, syncMessage = AppText.get(R.string.msg_saving_source))
             val id = graph.sourceRepository.save(draft)
             val saved = graph.sourceRepository.byId(id)
             if (saved == null) {
-                _ui.value = _ui.value.copy(syncing = false, syncMessage = "Could not save source.")
+                _ui.value = _ui.value.copy(syncing = false, syncMessage = AppText.get(R.string.msg_save_source_failed))
                 onDone(false)
                 return@launch
             }
 
-            _ui.value = _ui.value.copy(syncMessage = "Loading channels…")
+            _ui.value = _ui.value.copy(syncMessage = AppText.get(R.string.msg_loading_channels))
             val now = System.currentTimeMillis()
             // Load live channels first and get the user watching straight away. Movies, series and
             // the guide are what make a big provider take minutes — they load in the background so
@@ -139,8 +140,7 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
                 is CatalogRepository.SyncResult.Success -> {
                     _ui.value = _ui.value.copy(
                         syncing = false,
-                        syncMessage = "Loaded ${result.channelCount} channels. The guide is " +
-                            "loading in the background; Movies and Shows load when you open them.",
+                        syncMessage = AppText.get(R.string.msg_loaded_channels, result.channelCount),
                     )
                     onDone(true)
                 }
@@ -149,17 +149,15 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
             // Background: the guide. Movies/series are pulled on demand from their own tabs, so
             // nothing the user hasn't asked for ever blocks the channels they can already watch.
             runCatching {
-                val summary = StatusBus.during("Building the TV guide…") {
+                val summary = StatusBus.during(AppText.get(R.string.msg_building_guide)) {
                     graph.epgRepository.syncAll(now)
                 }
                 _ui.value = _ui.value.copy(
                     syncMessage = when {
                         summary.channelsMatched > 0 ->
-                            "Guide ready — matched ${summary.channelsMatched} of " +
-                                "${summary.channelsTotal} channels."
+                            AppText.get(R.string.msg_guide_ready, summary.channelsMatched, summary.channelsTotal)
                         else ->
-                            "Channels ready. No guide data matched yet — add a free guide " +
-                                "under Guide settings."
+                            AppText.get(R.string.msg_channels_no_guide)
                     },
                 )
                 // Book any new series-link airings the fresh guide just revealed.
@@ -184,7 +182,7 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshAll() {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(syncing = true, syncMessage = "Refreshing…")
+            _ui.value = _ui.value.copy(syncing = true, syncMessage = AppText.get(R.string.msg_refreshing))
             val now = System.currentTimeMillis()
             var channels = 0
             var problems = 0
@@ -200,10 +198,9 @@ class SourcesViewModel(app: Application) : AndroidViewModel(app) {
             _ui.value = _ui.value.copy(
                 syncing = false,
                 syncMessage = if (problems == 0) {
-                    "Refreshed $channels channels, guide matched " +
-                        "${summary.channelsMatched} of ${summary.channelsTotal}."
+                    AppText.get(R.string.msg_refreshed_ok, channels, summary.channelsMatched, summary.channelsTotal)
                 } else {
-                    "Refreshed $channels channels, $problems problem(s) — see Guide settings."
+                    AppText.get(R.string.msg_refreshed_problems, channels, problems)
                 },
             )
         }
@@ -579,10 +576,10 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
     /** A friendly, size-aware line for the load — a small provider gets a quick word, a huge one
      * gets a "bear with me". Used at start-up so the wait always says what it's doing. */
     private fun sizeMessage(count: Int): String = when {
-        count <= 0 -> "Building the guide…"
-        count < 2000 -> "Loading $count channels — a small one, this'll be quick."
-        count < 8000 -> "Loading $count channels — a fair few, give me a moment…"
-        else -> "Loading $count channels — a big one, bear with me, I'm on it…"
+        count <= 0 -> AppText.get(R.string.msg_building_guide_short)
+        count < 2000 -> AppText.get(R.string.msg_loading_small, count)
+        count < 8000 -> AppText.get(R.string.msg_loading_medium, count)
+        else -> AppText.get(R.string.msg_loading_big, count)
     }
 
     val favourites: StateFlow<List<Channel>> =
@@ -812,13 +809,12 @@ class EpgViewModel(app: Application) : AndroidViewModel(app) {
     fun refresh() {
         if (_ui.value.syncing) return
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(syncing = true, statusLine = "Downloading guides…")
+            _ui.value = _ui.value.copy(syncing = true, statusLine = AppText.get(R.string.msg_downloading_guides))
             val summary = graph.epgRepository.syncAll(System.currentTimeMillis(), force = true)
             _ui.value = _ui.value.copy(
                 syncing = false,
-                statusLine = "Guide matched ${summary.channelsMatched} of " +
-                    "${summary.channelsTotal} channels" +
-                    if (summary.feedsFailed > 0) " · ${summary.feedsFailed} feed(s) failed" else "",
+                statusLine = AppText.get(R.string.msg_guide_matched, summary.channelsMatched, summary.channelsTotal) +
+                    if (summary.feedsFailed > 0) AppText.get(R.string.msg_feeds_failed, summary.feedsFailed) else "",
             )
         }
     }
@@ -1106,7 +1102,7 @@ class VodViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         _vodLoading.value = true
-        val synced = StatusBus.during("Loading movies & shows…") {
+        val synced = StatusBus.during(AppText.get(R.string.msg_loading_vod)) {
             runCatching {
                 for (source in graph.sourceRepository.enabled()) {
                     graph.catalogRepository.syncVod(source, now)
@@ -1338,7 +1334,7 @@ class SyncViewModel(app: Application) : AndroidViewModel(app) {
             _receiveState.value = ReceiveState.Connecting
             client.pull(address, code)
                 .onSuccess { _receiveState.value = ReceiveState.Done(merge(it)) }
-                .onFailure { _receiveState.value = ReceiveState.Failed(it.message ?: "Sync failed.") }
+                .onFailure { _receiveState.value = ReceiveState.Failed(it.message ?: AppText.get(R.string.msg_sync_failed)) }
         }
     }
 

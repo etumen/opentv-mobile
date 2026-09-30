@@ -1,6 +1,6 @@
 # Privacy
 
-OpenTV collects nothing. There is no analytics SDK, no crash reporter, no telemetry, and no
+OpenTV Mobile collects nothing. There is no analytics SDK, no crash reporter, no telemetry, and no
 network call to any domain the project controls — because the project controls none.
 
 ## What is stored, and where
@@ -27,7 +27,7 @@ panels are HTTP-only; refusing them would make the app useless to most of the pe
 
 Be aware of what that means: **on an HTTP connection, your provider username and password are
 sent unencrypted**, and anyone able to observe the network between you and your provider can
-read them. This is a property of how these services are built, not of OpenTV. If your provider
+read them. This is a property of how these services are built, not of OpenTV Mobile. If your provider
 offers an HTTPS endpoint, use it.
 
 ## Uninstalling

@@ -97,6 +97,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Live TV: a category rail on the left, the channel list on the right.
@@ -173,6 +174,8 @@ fun HomeScreen(
     // offer the exemption so the capture survives standby. Once per session; never blocks recording.
     var showBackgroundPrompt by remember { mutableStateOf(false) }
     fun promptBackgroundIfNeeded() {
+        // Recordings post a notification while they run and when they finish.
+        app.opentv.core.NotificationPermission.askIfNeeded(context)
         if (RecordingBackgroundPrompt.shouldShow(context)) {
             RecordingBackgroundPrompt.markShown()
             showBackgroundPrompt = true
@@ -894,6 +897,8 @@ private suspend fun setReminder(
         ),
     )
     ReminderScheduler.set(context, id, programme.startUtcMillis)
+    // A reminder *is* a notification — ask for the permission it needs (Android 13+).
+    withContext(Dispatchers.Main) { app.opentv.core.NotificationPermission.askIfNeeded(context) }
 }
 
 @Composable

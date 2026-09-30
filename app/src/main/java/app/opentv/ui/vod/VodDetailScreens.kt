@@ -371,6 +371,7 @@ fun SeriesDetailScreen(
                         // Queue every episode of the season not already saved.
                         TextButton(
                             onClick = {
+                                app.opentv.core.NotificationPermission.askIfNeeded(context)
                                 downloadScope.launch {
                                     val repo = graph.downloadRepository
                                     // Queue every episode not already saved; they download one by one.

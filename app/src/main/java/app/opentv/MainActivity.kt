@@ -253,12 +253,16 @@ private fun OpenTvApp(isTelevision: Boolean) {
     val layoutClass = LocalLayoutClass.current
     val activity = LocalContext.current.findActivity()
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-    LaunchedEffect(layoutClass, currentRoute) {
+    val autoRotate by ServiceLocator.get(LocalContext.current).settings.phoneAutoRotate.collectAsState()
+    LaunchedEffect(layoutClass, currentRoute, autoRotate) {
         if (layoutClass != LayoutClass.PHONE || activity == null) return@LaunchedEffect
         val playing = currentRoute == Routes.PLAYER || currentRoute == Routes.VOD_PLAYER
-        activity.requestedOrientation =
-            if (playing) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+        activity.requestedOrientation = when {
+            // Follow the phone's own rotation lock / auto-rotate everywhere.
+            autoRotate -> ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+            playing -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+        }
     }
 
     // Until the saved sources have loaded from the database, we cannot tell a first run from a

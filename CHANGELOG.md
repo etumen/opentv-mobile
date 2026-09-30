@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.0 — first release of OpenTV Mobile
+
+OpenTV Mobile is a phone-first derivative of [OpenTV](https://github.com/opentvproject/opentv)
+0.11.8. Everything below is new relative to it; the TV interface is unchanged.
+
+- **Phone interface** — top bar and bottom tabs, portrait browsing with landscape playback (or
+  follow the phone's auto-rotate), a proper back arrow everywhere.
+- **Touch player** — swipe to change channel or skip, drag for brightness/volume, true full screen.
+- **Live TV** — search scoped to the current category, category sheet with filter and channel
+  counts, *My categories*, *Recent* channels, sort A–Z / by number, country-aware categories.
+- **Films & series** — origin tags (ES, EN 4K, NF…) with filter chips, cleaned titles and episode
+  names, three-column grids, per-tab Continue watching (long-press to remove), category counts.
+- **Search** — system keyboard, scope chips, instant full-text search, recent searches.
+- **Downloads** — save films and episodes for offline viewing, queued one at a time.
+- **Big catalogues** — streamed VOD sync (no more out-of-memory crashes), full-text indexes,
+  background-priority sync, much faster start-up on 50k-channel providers.
+- **Notifications on Android 13+** — asks for permission the first time a reminder, recording or
+  download needs one.
+- **Translations** — all new text translated into the app's 30 languages; connection and sync
+  messages are now translatable too.
+
+Versions below are the original OpenTV's history.
+
+
 ## 0.11.8
 
 - **Edit a saved provider.** Settings → Providers now has an **Edit** button on each provider, so you

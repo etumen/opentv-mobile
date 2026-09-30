@@ -5,6 +5,8 @@
  */
 package app.opentv.ui.recordings
 
+import app.opentv.ui.LocalLayoutClass
+import app.opentv.ui.LayoutClass
 import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -149,8 +151,12 @@ fun RecordingsScreen(onPlay: (Recording) -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 20.dp)) {
-        Text(stringResource(R.string.rec_screen_title), style = MaterialTheme.typography.headlineMedium)
+    val phone = LocalLayoutClass.current == LayoutClass.PHONE
+    Column(Modifier.fillMaxSize().padding(horizontal = if (phone) 12.dp else 28.dp, vertical = if (phone) 8.dp else 20.dp)) {
+        Text(
+            stringResource(R.string.rec_screen_title),
+            style = if (phone) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+        )
         Spacer(Modifier.height(4.dp))
         Text(
             stringResource(R.string.rec_screen_desc),

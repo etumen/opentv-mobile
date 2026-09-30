@@ -1,4 +1,4 @@
-# Contributing to OpenTV
+# Contributing to OpenTV Mobile
 
 Everyone is welcome here, including — especially — people who have never contributed to an
 open-source project before. If you are fixing the bug that has been annoying you, you are
@@ -8,7 +8,7 @@ exactly the person this project is for.
 
 **Do not copy code from any other IPTV app, and do not decompile one.**
 
-OpenTV is a clean-room implementation. If any decompiled or copied code enters this repository,
+OpenTV Mobile, like the OpenTV it is built on, is a clean-room implementation. If any decompiled or copied code enters this repository,
 the project loses the legal footing that makes it safe for anyone to use, fork and distribute —
 which is the whole reason it exists. Pull requests that appear to contain code lifted from a
 closed-source app will be closed.
@@ -31,7 +31,7 @@ device-specific — a particular box, a particular Android version, a particular
 include:
 
 - Device and Android version (e.g. "Ugoos AM9 Pro, Android 14"; "Fire TV Stick 4K, Fire OS 7")
-- OpenTV version
+- OpenTV Mobile version (Settings → About)
 - Source type: Xtream login or M3U playlist
 - What happened, and what you expected
 - Logs if you can get them: `adb logcat -s OpenTV:* EpgRepository:* SyncWorker:*`

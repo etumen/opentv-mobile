@@ -5,6 +5,8 @@
  */
 package app.opentv.data.remote
 
+import app.opentv.R
+import app.opentv.core.AppText
 import android.util.Log
 import app.opentv.data.model.Category
 import app.opentv.data.model.Channel
@@ -125,7 +127,7 @@ class StalkerApi(
         val now = System.currentTimeMillis()
         if (!force) sessions[source.id]?.let { if (it.expiresAt > now) return it }
         val mac = source.macAddress?.trim().orEmpty()
-        if (mac.isEmpty()) throw StalkerException("This portal needs a MAC address (e.g. 00:1A:79:xx:xx:xx).")
+        if (mac.isEmpty()) throw StalkerException(AppText.get(R.string.err_mac_needed))
         var lastError: Throwable? = null
         for (endpoint in endpoints(source)) {
             val hs = runCatching { handshake(source, endpoint) }
@@ -140,7 +142,7 @@ class StalkerApi(
             }
         }
         throw StalkerException(
-            "The portal didn't accept this MAC address, or the URL is wrong.",
+            AppText.get(R.string.err_mac_rejected),
             lastError,
         )
     }

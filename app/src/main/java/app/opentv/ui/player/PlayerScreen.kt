@@ -269,6 +269,7 @@ fun PlayerScreen(
             graph.recordingEngine.stop(active.id)
         } else {
             val channel = variants.firstOrNull { it.id == currentId } ?: return
+            app.opentv.core.NotificationPermission.askIfNeeded(context)
             scope.launch { graph.recordingEngine.startChannel(channel) }
             if (RecordingBackgroundPrompt.shouldShow(context)) {
                 RecordingBackgroundPrompt.markShown()

@@ -292,6 +292,18 @@ class AppSettings private constructor(context: Context) {
         _channelSort.value = sort
     }
 
+    /**
+     * Phones only: off (default) keeps browsing in portrait and playback in landscape; on lets the
+     * whole app follow the phone's own auto-rotate, for people who browse sideways.
+     */
+    private val _phoneAutoRotate = MutableStateFlow(prefs.getBoolean(KEY_PHONE_AUTO_ROTATE, false))
+    val phoneAutoRotate: StateFlow<Boolean> = _phoneAutoRotate.asStateFlow()
+
+    fun setPhoneAutoRotate(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PHONE_AUTO_ROTATE, enabled).apply()
+        _phoneAutoRotate.value = enabled
+    }
+
     /** Live channels played lately (ids), newest first — the Live tab's "Recent" list. */
     private val _recentChannels = MutableStateFlow(
         prefs.getString(KEY_RECENT_CHANNELS, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() },
@@ -499,6 +511,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_RECENT_SEARCHES = "recent_searches"
         private const val KEY_RECENT_CHANNELS = "recent_channels"
         private const val KEY_CHANNEL_SORT = "channel_sort"
+        private const val KEY_PHONE_AUTO_ROTATE = "phone_auto_rotate"
         private const val MAX_RECENT_CHANNELS = 20
         private const val MAX_RECENT_SEARCHES = 8
         private const val KEY_ACTIVE_PROFILE = "active_profile_id"

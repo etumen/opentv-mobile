@@ -60,6 +60,7 @@ class OpenTvApp : Application(), ImageLoaderFactory {
         super.onCreate()
         val graph = ServiceLocator.get(this)
         app.opentv.player.PlaybackErrors.context = this
+        app.opentv.core.AppText.init(this)
         SyncWorker.schedule(this)
 
         // When the normaliser has moved on since the catalogue was last processed, re-clean

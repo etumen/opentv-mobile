@@ -68,6 +68,8 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         }
     }
 
+    // Permission is checked via NotificationPermission.granted() (lint can't see through it).
+    @android.annotation.SuppressLint("MissingPermission")
     private fun notify(context: Context, reminder: Reminder) {
         createChannel(context)
 
@@ -99,8 +101,12 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
             builder.setFullScreenIntent(contentPi, true)
         }
 
-        NotificationManagerCompat.from(context)
-            .notify(NOTIFICATION_BASE + reminder.id.toInt(), builder.build() as Notification)
+        // Without the Android 13+ permission the post is dropped anyway; skip it explicitly.
+        if (!app.opentv.core.NotificationPermission.granted(context)) return
+        runCatching {
+            NotificationManagerCompat.from(context)
+                .notify(NOTIFICATION_BASE + reminder.id.toInt(), builder.build() as Notification)
+        }
     }
 
     private fun createChannel(context: Context) {

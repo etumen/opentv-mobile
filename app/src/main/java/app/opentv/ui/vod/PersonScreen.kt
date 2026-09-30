@@ -5,6 +5,7 @@
  */
 package app.opentv.ui.vod
 
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,7 +67,7 @@ fun PersonScreen(
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+            modifier = Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 16.dp),
         )
 
         // Weighted so the grid/empty state fills the space under the fixed header, exactly — the same

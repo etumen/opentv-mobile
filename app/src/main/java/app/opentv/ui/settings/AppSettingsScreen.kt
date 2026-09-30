@@ -5,6 +5,8 @@
  */
 package app.opentv.ui.settings
 
+import app.opentv.ui.LocalLayoutClass
+import app.opentv.ui.LayoutClass
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -184,6 +186,15 @@ fun AppSettingsScreen(onBack: () -> Unit) {
                 checked = previewSound,
                 onToggle = settings::setGuidePreviewSound,
             )
+            if (LocalLayoutClass.current == LayoutClass.PHONE) {
+                val autoRotate by settings.phoneAutoRotate.collectAsState()
+                ToggleRow(
+                    title = stringResource(R.string.settings_auto_rotate_title),
+                    subtitle = stringResource(R.string.settings_auto_rotate_subtitle),
+                    checked = autoRotate,
+                    onToggle = settings::setPhoneAutoRotate,
+                )
+            }
         }
 
         Spacer(Modifier.height(16.dp))
