@@ -6,6 +6,9 @@ anything large.
 
 ## Next
 
+- **Local M3U files** — pick a `.m3u`/`.m3u8` from the phone instead of typing a URL. The file is
+  copied into the app and can be re-imported when you have a newer one (a local file can't
+  refresh itself the way a URL does).
 - **Programme guide on the phone** — a touch-friendly grid (swipe through time) alongside the
   now/next list.
 - **Paging for huge film/series libraries** — load "All" shelves and grids incrementally.
