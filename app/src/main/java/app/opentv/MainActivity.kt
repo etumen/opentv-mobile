@@ -79,7 +79,7 @@ import app.opentv.ui.settings.EpgSettingsScreen
 import app.opentv.ui.settings.ParentalControlsScreen
 import app.opentv.ui.settings.ProfilesScreen
 import app.opentv.ui.settings.ProvidersScreen
-import app.opentv.ui.settings.StremioAddonsScreen
+import app.opentv.ui.settings.CloudProvidersScreen
 import app.opentv.ui.settings.RecordingSettingsScreen
 import app.opentv.ui.settings.SyncScreen
 import app.opentv.ui.settings.SettingsHubScreen
@@ -485,7 +485,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
             }
 
             composable(Routes.ADDONS) {
-                StremioAddonsScreen(onBack = { navController.popBackStack() })
+                CloudProvidersScreen(onBack = { navController.popBackStack() })
             }
 
             composable(Routes.ABOUT) {
@@ -537,11 +537,6 @@ private fun OpenTvApp(isTelevision: Boolean) {
                                 title = movie.displayTitle,
                                 ua = "OpenTV/0.1 (Android)",
                             ),
-                        )
-                    },
-                    onPlayUrl = { key, url, title ->
-                        navController.navigate(
-                            Routes.vodPlayer(key = key, url = url, title = title, ua = "OpenTV/0.1 (Android)"),
                         )
                     },
                     onOpenMovie = { movie -> navController.navigate(Routes.movieDetail(movie.id)) },

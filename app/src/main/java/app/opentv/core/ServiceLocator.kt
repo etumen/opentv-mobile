@@ -10,7 +10,6 @@ import app.opentv.data.db.OpenTvDatabase
 import app.opentv.data.provider.ProviderRegistry
 import app.opentv.data.provider.ProviderRepository
 import app.opentv.data.remote.StalkerApi
-import app.opentv.data.remote.StremioClient
 import app.opentv.data.remote.XtreamApi
 import app.opentv.data.repo.CatalogRepository
 import app.opentv.data.repo.EpgRepository
@@ -81,10 +80,7 @@ object ServiceLocator {
         /** Stalker / Ministra portal client (MAC handshake + create_link). */
         val stalkerApi: StalkerApi by lazy { StalkerApi(httpClient) }
 
-        /** Neutral Stremio add-on protocol client. Talks only to user-added manifest URLs. */
-        val stremioClient: StremioClient by lazy { StremioClient(httpClient) }
-
-        /** Native cloud-provider graph. Kept independent from IPTV sources and Stremio. */
+        /** Native cloud-provider graph. Kept independent from IPTV sources. */
         val providerRegistry: ProviderRegistry by lazy { ProviderRegistry() }
         val providerRepository: ProviderRepository by lazy { ProviderRepository(providerRegistry) }
 
