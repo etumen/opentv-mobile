@@ -143,6 +143,10 @@
     <string name="cloud_providers_section">Cloud Providers</string>
     <string name="cloud_providers_empty">No Cloud Providers installed</string>
     <string name="cloud_providers_empty_hint">Provider repository and install controls will appear here when a provider source is configured.</string>
+    <string name="cloud_resolving_stream">Finding stream…</string>
+    <string name="cloud_choose_stream">Choose a stream</string>
+    <string name="cloud_search_title">Cloud Providers</string>
+    <string name="cloud_no_stream">No playable stream was returned by this provider.</string>
     <string name="settings_guide_title">TV guide</string>
     <string name="settings_guide_subtitle">Guide sources and free XMLTV feeds</string>
     <string name="settings_channels_subtitle">Hide or favourite individual channels</string>

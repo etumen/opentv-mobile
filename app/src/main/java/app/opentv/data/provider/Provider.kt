@@ -16,6 +16,8 @@ interface Provider {
     val id: String
     val name: String
     val supportedMediaTypes: Set<ProviderMediaType>
+    val catalogSections: List<ProviderCatalogSection>
+        get() = emptyList()
 
     suspend fun catalog(request: ProviderCatalogRequest): ProviderResult<ProviderCatalogPage>
 

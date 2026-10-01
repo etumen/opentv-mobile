@@ -86,6 +86,7 @@ import app.opentv.ui.settings.SettingsHubScreen
 import app.opentv.ui.settings.WebManagerScreen
 import app.opentv.ui.theme.OpenTvTheme
 import app.opentv.ui.vod.MovieDetailScreen
+import app.opentv.ui.vod.CloudMovieDetailScreen
 import app.opentv.ui.vod.PersonScreen
 import app.opentv.ui.vod.SeriesDetailScreen
 import app.opentv.ui.vod.VodPlayerScreen
@@ -213,6 +214,7 @@ object Routes {
     const val ABOUT = "about"
     const val SERIES_DETAIL = "series/{seriesId}"
     const val MOVIE_DETAIL = "movie/{movieId}"
+    const val CLOUD_MOVIE_DETAIL = "cloud-movie/{providerId}?itemId={itemId}"
     const val EDIT_SOURCE = "edit-source/{sourceId}"
 
     // A person's name goes in a query arg, URL-encoded, so spaces and punctuation survive the round
@@ -221,19 +223,32 @@ object Routes {
 
     // VOD plays carry the stream inline; a movie/episode is a one-off URL, not a stored id
     // the player can look up the way a channel is.
-    const val VOD_PLAYER = "vod?key={key}&url={url}&title={title}&ua={ua}"
+    const val VOD_PLAYER =
+        "vod?key={key}&url={url}&title={title}&ua={ua}&ref={ref}&sub={sub}&subLabel={subLabel}&subLang={subLang}&subMime={subMime}"
 
     fun player(channelId: Long) = "player/$channelId"
     fun seriesDetail(seriesId: Long) = "series/$seriesId"
     fun movieDetail(movieId: Long) = "movie/$movieId"
+    fun cloudMovieDetail(providerId: String, itemId: String): String =
+        "cloud-movie/${android.net.Uri.encode(providerId)}?itemId=${android.net.Uri.encode(itemId)}"
     fun editSource(sourceId: Long) = "edit-source/$sourceId"
     fun person(name: String) = "person?name=${java.net.URLEncoder.encode(name, "UTF-8")}"
-    fun vodPlayer(key: String, url: String, title: String, ua: String): String {
-        // Strict percent-encoding (space = %20, '+' = %2B). Navigation decodes query arguments once;
-        // the old URLEncoder + second URLDecoder pass turned every '+' into a space — breaking
-        // titles like "A+ …" and any stream URL carrying a '+' in a token.
+    fun vodPlayer(
+        key: String,
+        url: String,
+        title: String,
+        ua: String,
+        referer: String = "",
+        subtitleUrl: String = "",
+        subtitleLabel: String = "",
+        subtitleLanguage: String = "",
+        subtitleMimeType: String = "",
+    ): String {
+        // Strict percent-encoding (space = %20, '+' = %2B). Navigation decodes query arguments once.
         fun e(v: String) = android.net.Uri.encode(v)
-        return "vod?key=${e(key)}&url=${e(url)}&title=${e(title)}&ua=${e(ua)}"
+        return "vod?key=${e(key)}&url=${e(url)}&title=${e(title)}&ua=${e(ua)}" +
+            "&ref=${e(referer)}&sub=${e(subtitleUrl)}&subLabel=${e(subtitleLabel)}" +
+            "&subLang=${e(subtitleLanguage)}&subMime=${e(subtitleMimeType)}"
     }
 }
 
@@ -365,6 +380,9 @@ private fun OpenTvApp(isTelevision: Boolean) {
                     onOpenMovie = { movie ->
                         navController.navigate(Routes.movieDetail(movie.id))
                     },
+                    onOpenCloudMovie = { movie ->
+                        navController.navigate(Routes.cloudMovieDetail(movie.providerId, movie.id))
+                    },
                     onOpenSeries = { series ->
                         navController.navigate(Routes.seriesDetail(series.id))
                     },
@@ -423,6 +441,9 @@ private fun OpenTvApp(isTelevision: Boolean) {
                 SearchScreen(
                     initialScope = entry.arguments?.getString("scope") ?: "all",
                     onOpenMovie = { movie -> navController.navigate(Routes.movieDetail(movie.id)) },
+                    onOpenCloudMovie = { movie ->
+                        navController.navigate(Routes.cloudMovieDetail(movie.providerId, movie.id))
+                    },
                     onPlayChannel = { channel -> navController.navigate(Routes.player(channel.id)) },
                     onPlayMovie = { movie ->
                         navController.navigate(
@@ -545,6 +566,35 @@ private fun OpenTvApp(isTelevision: Boolean) {
                 )
             }
 
+            composable(Routes.CLOUD_MOVIE_DETAIL) { entry ->
+                val providerId = entry.arguments?.getString("providerId").orEmpty()
+                val itemId = entry.arguments?.getString("itemId").orEmpty()
+                if (providerId.isBlank() || itemId.isBlank()) return@composable
+
+                CloudMovieDetailScreen(
+                    providerId = providerId,
+                    itemId = itemId,
+                    onPlay = { details, stream, subtitle ->
+                        val userAgent = stream.headers["User-Agent"]
+                            ?: "OpenTV/0.1 (Android)"
+                        navController.navigate(
+                            Routes.vodPlayer(
+                                key = "cloud:$providerId:${itemId.hashCode()}",
+                                url = stream.url,
+                                title = details.item.title,
+                                ua = userAgent,
+                                referer = stream.headers["Referer"].orEmpty(),
+                                subtitleUrl = subtitle?.url.orEmpty(),
+                                subtitleLabel = subtitle?.label.orEmpty(),
+                                subtitleLanguage = subtitle?.language.orEmpty(),
+                                subtitleMimeType = subtitle?.mimeType.orEmpty(),
+                            ),
+                        )
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
             composable(Routes.PERSON) { entry ->
                 val name = entry.arguments?.getString("name")
                     ?.let { java.net.URLDecoder.decode(it, "UTF-8") }.orEmpty()
@@ -565,6 +615,11 @@ private fun OpenTvApp(isTelevision: Boolean) {
                     streamUrl = arg("url"),
                     title = arg("title"),
                     userAgent = arg("ua").ifEmpty { "OpenTV/0.1 (Android)" },
+                    referer = arg("ref"),
+                    subtitleUrl = arg("sub"),
+                    subtitleLabel = arg("subLabel"),
+                    subtitleLanguage = arg("subLang"),
+                    subtitleMimeType = arg("subMime"),
                     onBack = { navController.popBackStack() },
                 )
             }

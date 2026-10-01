@@ -122,6 +122,11 @@ fun VodPlayerScreen(
     streamUrl: String,
     title: String,
     userAgent: String,
+    referer: String = "",
+    subtitleUrl: String = "",
+    subtitleLabel: String = "",
+    subtitleLanguage: String = "",
+    subtitleMimeType: String = "",
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -137,7 +142,10 @@ fun VodPlayerScreen(
     // http/file URLs of ordinary VOD.
     val controller = remember {
         PlayerController(
-            context, scope, graph.streamingHttpClient, subtitlesEnabled = false,
+            context,
+            scope,
+            graph.streamingHttpClient,
+            subtitlesEnabled = subtitleUrl.isNotBlank(),
             smbDataSourceFactory = app.opentv.player.SmbDataSource.Factory(graph.settings),
             // Lets an `optvrec://<id>` recording play while it's still being written.
             growingDataSourceFactory =
@@ -212,7 +220,7 @@ fun VodPlayerScreen(
         }
     }
 
-    LaunchedEffect(mediaKey) {
+    LaunchedEffect(mediaKey, streamUrl, referer, subtitleUrl) {
         val resumeFrom = graph.playbackPositions.get(settings.activeProfileId.value, mediaKey)
             ?.takeIf { !it.isFinished }?.positionMillis ?: 0L
         // Downloaded? Play the file — works with no signal, and spares the provider connection.
@@ -222,6 +230,13 @@ fun VodPlayerScreen(
                 url = url,
                 title = title,
                 userAgent = userAgent,
+                requestHeaders = buildMap {
+                    if (referer.isNotBlank()) put("Referer", referer)
+                },
+                subtitleUrl = subtitleUrl.takeIf { it.isNotBlank() },
+                subtitleLabel = subtitleLabel.takeIf { it.isNotBlank() },
+                subtitleLanguage = subtitleLanguage.takeIf { it.isNotBlank() },
+                subtitleMimeType = subtitleMimeType.takeIf { it.isNotBlank() },
                 startPositionMillis = resumeFrom,
                 isLive = false,
             ),

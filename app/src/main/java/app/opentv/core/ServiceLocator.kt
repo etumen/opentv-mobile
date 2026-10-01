@@ -9,6 +9,7 @@ import android.content.Context
 import app.opentv.data.db.OpenTvDatabase
 import app.opentv.data.provider.ProviderRegistry
 import app.opentv.data.provider.ProviderRepository
+import app.opentv.data.provider.fullhd.FullHdFilmizleseneProvider
 import app.opentv.data.remote.StalkerApi
 import app.opentv.data.remote.XtreamApi
 import app.opentv.data.repo.CatalogRepository
@@ -81,7 +82,9 @@ object ServiceLocator {
         val stalkerApi: StalkerApi by lazy { StalkerApi(httpClient) }
 
         /** Native cloud-provider graph. Kept independent from IPTV sources. */
-        val providerRegistry: ProviderRegistry by lazy { ProviderRegistry() }
+        val providerRegistry: ProviderRegistry by lazy {
+            ProviderRegistry(listOf(FullHdFilmizleseneProvider(httpClient)))
+        }
         val providerRepository: ProviderRepository by lazy { ProviderRepository(providerRegistry) }
 
         val sourceRepository: SourceRepository by lazy {

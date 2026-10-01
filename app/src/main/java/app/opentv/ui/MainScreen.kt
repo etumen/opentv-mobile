@@ -72,6 +72,7 @@ import app.opentv.data.model.Channel
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Recording
 import app.opentv.data.model.Series
+import app.opentv.data.provider.ProviderItem
 import app.opentv.ui.channels.HomeScreen
 import app.opentv.ui.recordings.RecordingsScreen
 import app.opentv.ui.downloads.DownloadsScreen
@@ -103,6 +104,7 @@ fun MainScreen(
     isSyncing: Boolean,
     onPlayChannel: (Channel) -> Unit,
     onOpenMovie: (Movie) -> Unit,
+    onOpenCloudMovie: (ProviderItem) -> Unit,
     onOpenSeries: (Series) -> Unit,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
     onAddSource: () -> Unit,
@@ -183,6 +185,7 @@ fun MainScreen(
             )
             Tab.MOVIES -> MoviesScreen(
                 onOpenMovie = onOpenMovie,
+                onOpenCloudMovie = onOpenCloudMovie,
                 onResume = onResume,
                 onOpenSearch = { onOpenSearch("movies") },
                 hasSources = hasSources,

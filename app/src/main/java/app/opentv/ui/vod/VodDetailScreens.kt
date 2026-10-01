@@ -314,7 +314,7 @@ fun SeriesDetailScreen(
  * beside an intentional-looking placeholder card, never an empty rectangle.
  */
 @Composable
-private fun DetailBackdrop(
+internal fun DetailBackdrop(
     title: String,
     backdropUrl: String?,
     posterUrl: String?,
@@ -444,7 +444,7 @@ private fun HeroPosterCard(posterUrl: String?, title: String) {
  * Column, so a long cast list scrolls cleanly to the edge on a d-pad instead of stopping short.
  */
 @Composable
-private fun DetailInfo(
+internal fun DetailInfo(
     plot: String?,
     cast: String?,
     director: String?,
@@ -565,7 +565,7 @@ private fun PersonChip(name: String, onClick: () -> Unit) {
 
 /** A focusable pill button for the hero — Watch/Resume and the favourite toggle. */
 @Composable
-private fun DetailButton(
+internal fun DetailButton(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
@@ -726,7 +726,7 @@ private fun episodeDownload(series: Series, ep: Episode) = Download(
 )
 
 @Composable
-private fun LoadingDetail() {
+internal fun LoadingDetail() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator()

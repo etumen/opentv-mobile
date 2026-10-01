@@ -77,6 +77,7 @@ import app.opentv.R
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.model.Source
+import app.opentv.data.provider.ProviderItem
 import app.opentv.data.parser.displayTitle
 import app.opentv.data.parser.sourceTag
 import app.opentv.ui.VodViewModel
@@ -91,11 +92,13 @@ import coil.compose.AsyncImage
 @Composable
 fun MoviesScreen(
     onOpenMovie: (Movie) -> Unit,
+    onOpenCloudMovie: (ProviderItem) -> Unit,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
     onOpenSearch: () -> Unit,
     hasSources: Boolean,
     isSyncing: Boolean,
     viewModel: VodViewModel = viewModel(),
+    cloudViewModel: CloudVodViewModel = viewModel(),
 ) {
     val categories by viewModel.movieCategories.collectAsState()
     // Films only here; episodes belong on the Series tab.
@@ -108,12 +111,15 @@ fun MoviesScreen(
     val vodLoading by viewModel.vodLoading.collectAsState()
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedVodSource.collectAsState()
+    val cloudShelves by cloudViewModel.movieShelves.collectAsState()
+    val cloudLoading by cloudViewModel.loadingMovies.collectAsState()
 
     // Pull the movie library the first time this tab is opened, not at login; refresh the computed
     // home rows (recommended, by-genre) on open too — cheap, and covers a library already on disk.
     LaunchedEffect(Unit) {
         if (hasSources) viewModel.ensureVodLoaded()
         viewModel.loadHomeFeeds()
+        cloudViewModel.loadMovieShelves()
     }
 
     // null = the curated home rows; a category id = that category's full grid.
@@ -122,7 +128,7 @@ fun MoviesScreen(
 
     val hasMovies by viewModel.hasMovies.collectAsState()
     val hasContent = resume.isNotEmpty() || recommended.isNotEmpty() ||
-        recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
+        recentlyAdded.isNotEmpty() || genreRows.isNotEmpty() || cloudShelves.isNotEmpty()
 
     Column(Modifier.fillMaxSize()) {
         SearchAffordance(onOpenSearch)
@@ -150,7 +156,8 @@ fun MoviesScreen(
                 !hasContent -> when {
                     // Not a confirmed-empty library (still answering, or rows exist and the
                     // shelves are building): show progress, never "no films".
-                    vodLoading || isSyncing || hasMovies != false -> LoadingVod(stringResource(R.string.vod_loading_movies))
+                    cloudLoading || vodLoading || isSyncing || hasMovies != false ->
+                        LoadingVod(stringResource(R.string.vod_loading_movies))
                     hasSources -> EmptyVod(stringResource(R.string.vod_no_movies), stringResource(R.string.vod_no_movies_provider))
                     else -> EmptyVod(stringResource(R.string.vod_no_movies), stringResource(R.string.vod_no_movies_add))
                 }
@@ -168,6 +175,12 @@ fun MoviesScreen(
                     }
                     items(genreRows, key = { "g:${it.genre}" }) { group ->
                         MoviePosterRow(group.genre, group.items, onOpenMovie)
+                    }
+                    items(
+                        cloudShelves,
+                        key = { "cloud:${it.providerId}:${it.section.id}" },
+                    ) { shelf ->
+                        CloudMoviePosterRow(shelf, onOpenCloudMovie)
                     }
                 }
             }

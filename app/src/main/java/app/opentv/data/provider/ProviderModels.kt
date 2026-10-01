@@ -12,6 +12,12 @@ enum class ProviderMediaType {
     OTHER,
 }
 
+data class ProviderCatalogSection(
+    val id: String,
+    val title: String,
+    val mediaType: ProviderMediaType,
+)
+
 data class ProviderCatalogRequest(
     val mediaType: ProviderMediaType,
     val sectionId: String? = null,
