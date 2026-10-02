@@ -1,3 +1,5 @@
+Process started with PID 39664 (shell: powershell.exe)
+Initial output:
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -123,6 +125,8 @@ fun VodPlayerScreen(
     title: String,
     userAgent: String,
     referer: String = "",
+    cookie: String = "",
+    origin: String = "",
     streamMimeType: String = "",
     subtitleUrl: String = "",
     subtitleLabel: String = "",
@@ -221,7 +225,7 @@ fun VodPlayerScreen(
         }
     }
 
-    LaunchedEffect(mediaKey, streamUrl, referer, streamMimeType, subtitleUrl) {
+    LaunchedEffect(mediaKey, streamUrl, referer, cookie, origin, streamMimeType, subtitleUrl) {
         val resumeFrom = graph.playbackPositions.get(settings.activeProfileId.value, mediaKey)
             ?.takeIf { !it.isFinished }?.positionMillis ?: 0L
         // Downloaded? Play the file — works with no signal, and spares the provider connection.
@@ -235,6 +239,8 @@ fun VodPlayerScreen(
                 userAgent = userAgent,
                 requestHeaders = buildMap {
                     if (referer.isNotBlank()) put("Referer", referer)
+                    if (cookie.isNotBlank()) put("Cookie", cookie)
+                    if (origin.isNotBlank()) put("Origin", origin)
                 },
                 streamMimeType = streamMimeType.takeIf { localUrl == null && it.isNotBlank() },
                 subtitleUrl = subtitleUrl.takeIf { it.isNotBlank() },
@@ -359,278 +365,7 @@ fun VodPlayerScreen(
             AnimatedVisibility(
                 visible = controlsVisible,
                 enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.align(Alignment.TopStart),
-            ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .windowInsetsPadding(PlayerChromeInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
-                        .padding(8.dp),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
-                }
-            }
-        }
+                exit = 
+🔄 Process 39664 is waiting for input (detected: "")
 
-        when (val current = state) {
-            is PlayerController.State.Buffering ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        // The control bar already shows the title; drawn twice they overlapped.
-                        if (!controlsVisible) {
-                            Spacer(Modifier.height(16.dp))
-                            Text(current.title, color = Color.White)
-                        }
-                    }
-                }
-
-            is PlayerController.State.Error ->
-                Box(
-                    Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(48.dp),
-                    ) {
-                        Text(current.title, style = MaterialTheme.typography.headlineSmall, color = Color.White)
-                        Spacer(Modifier.height(12.dp))
-                        Text(current.message, color = Color.White.copy(alpha = 0.85f), textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(24.dp))
-                        Button(onClick = { controller.retry() }) { Text(stringResource(R.string.common_try_again)) }
-                    }
-                }
-
-            else -> Unit
-        }
-
-        AnimatedVisibility(
-            visible = controlsVisible,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))))
-                    // Keep the controls clear of the phone/tablet system nav bar (and the side nav
-                    // bar / display cutout in landscape). Zero on a TV, so the 10-foot layout is
-                    // unchanged; the gradient above stays full-bleed to the screen edge.
-                    .windowInsetsPadding(
-                        PlayerChromeInsets.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-                    )
-                    .padding(horizontal = 28.dp, vertical = 20.dp),
-            ) {
-                if (vodPanel != VodPanel.NONE) {
-                    TrackPanel(
-                        panel = vodPanel,
-                        controller = controller,
-                        tracks = tracks,
-                        firstFocus = panelFocus,
-                        onDone = { vodPanel = VodPanel.NONE; interaction++ },
-                    )
-                    Spacer(Modifier.height(16.dp))
-                }
-
-                if (growingRec) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.FiberManualRecord,
-                            contentDescription = null,
-                            tint = Color(0xFFE53935),
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            stringResource(R.string.rec_watching_live_badge),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color(0xFFE53935),
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
-                }
-                Text(title, style = MaterialTheme.typography.headlineSmall, color = Color.White)
-                Spacer(Modifier.height(8.dp))
-
-                // Seek bar with times either side. Left/right on the remote scrubs.
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatDuration(if (scrubbing) scrubValue.toLong() else positionMs), color = Color.White)
-                    Spacer(Modifier.width(12.dp))
-                    Slider(
-                        value = if (scrubbing) scrubValue else positionMs.toFloat(),
-                        valueRange = 0f..(durationMs.takeIf { it > 0 }?.toFloat() ?: 1f),
-                        onValueChange = { scrubbing = true; scrubValue = it; interaction++ },
-                        onValueChangeFinished = {
-                            controller.player.seekTo(scrubValue.toLong())
-                            positionMs = scrubValue.toLong()
-                            scrubbing = false
-                            interaction++
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(formatDuration(durationMs), color = Color.White)
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                Row(
-                    Modifier.then(if (touch) Modifier.horizontalScroll(rememberScrollState()) else Modifier),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    VodChip(Icons.Filled.FastRewind, stringResource(R.string.player_rewind)) {
-                        if (growingRec) seekRelative(-15_000) else controller.seekBackward(); interaction++
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    VodChip(
-                        icon = if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                        label = if (paused) stringResource(R.string.common_play) else stringResource(R.string.player_pause),
-                        focusRequester = barFocus,
-                    ) {
-                        paused = !paused
-                        controller.player.playWhenReady = !paused
-                        interaction++
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    VodChip(Icons.Filled.FastForward, stringResource(R.string.player_forward)) {
-                        if (growingRec) seekRelative(15_000) else controller.seekForward(); interaction++
-                    }
-                    Spacer(Modifier.width(20.dp))
-                    VodChip(Icons.Filled.ClosedCaption, stringResource(R.string.player_subtitles)) {
-                        vodPanel = if (vodPanel == VodPanel.SUBTITLES) VodPanel.NONE else VodPanel.SUBTITLES
-                        interaction++
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    VodChip(Icons.Filled.Audiotrack, stringResource(R.string.player_audio)) {
-                        vodPanel = if (vodPanel == VodPanel.AUDIO) VodPanel.NONE else VodPanel.AUDIO
-                        interaction++
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun VodChip(
-    icon: ImageVector,
-    label: String,
-    focusRequester: FocusRequester? = null,
-    onClick: () -> Unit,
-) {
-    var focused by remember { mutableStateOf(false) }
-    val container = if (focused) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.14f)
-    val content = if (focused) MaterialTheme.colorScheme.onPrimary else Color.White
-    Row(
-        modifier = Modifier
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .onFocusChanged { focused = it.isFocused }
-            .clip(RoundedCornerShape(12.dp))
-            .background(container)
-            .then(
-                if (focused) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
-                else Modifier,
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = label, tint = content)
-        Spacer(Modifier.width(6.dp))
-        Text(label, style = MaterialTheme.typography.labelLarge, color = content)
-    }
-}
-
-private enum class VodPanel { NONE, SUBTITLES, AUDIO }
-
-@OptIn(UnstableApi::class)
-@Composable
-private fun TrackPanel(
-    panel: VodPanel,
-    controller: PlayerController,
-    tracks: Tracks,
-    firstFocus: FocusRequester,
-    onDone: () -> Unit,
-) {
-    val trackType = if (panel == VodPanel.SUBTITLES) C.TRACK_TYPE_TEXT else C.TRACK_TYPE_AUDIO
-    val groups = tracks.groups.filter { it.type == trackType }
-    val options = mutableListOf<Triple<String, Boolean, () -> Unit>>()
-
-    if (panel == VodPanel.SUBTITLES) {
-        val anySelected = groups.any { g -> (0 until g.length).any { g.isTrackSelected(it) } }
-        options += Triple(stringResource(R.string.player_subtitles_off), !anySelected) { controller.disableText(); onDone() }
-    }
-    groups.forEach { group ->
-        for (i in 0 until group.length) {
-            if (!group.isTrackSupported(i)) continue
-            val format = group.getTrackFormat(i)
-            options += Triple(vodTrackLabel(format.label, format.language, options.size), group.isTrackSelected(i)) {
-                controller.selectTrack(group, i); onDone()
-            }
-        }
-    }
-
-    Column(
-        Modifier
-            .widthIn(max = 420.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color.Black.copy(alpha = 0.92f))
-            .padding(16.dp),
-    ) {
-        Text(
-            if (panel == VodPanel.SUBTITLES) stringResource(R.string.player_subtitles) else stringResource(R.string.player_audio),
-            style = MaterialTheme.typography.titleMedium,
-            color = Color.White.copy(alpha = 0.7f),
-        )
-        Spacer(Modifier.height(8.dp))
-        Column(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState())) {
-            if (options.isEmpty()) {
-                Text(stringResource(R.string.player_none_available), color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(8.dp))
-            }
-            options.forEachIndexed { index, (label, selected, onClick) ->
-                TrackRow(label, selected, onClick, if (index == 0) firstFocus else null)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TrackRow(label: String, selected: Boolean, onClick: () -> Unit, focusRequester: FocusRequester?) {
-    var focused by remember { mutableStateOf(false) }
-    val bg = if (focused) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.08f)
-    val fg = if (focused) MaterialTheme.colorScheme.onPrimary else Color.White
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .onFocusChanged { focused = it.isFocused }
-            .clip(RoundedCornerShape(10.dp))
-            .background(bg)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.titleMedium, color = fg, modifier = Modifier.weight(1f))
-        if (selected) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.common_selected), tint = fg)
-    }
-}
-
-private fun vodTrackLabel(label: String?, language: String?, index: Int): String {
-    if (!label.isNullOrBlank()) return label
-    if (!language.isNullOrBlank() && language != "und") {
-        return runCatching { java.util.Locale(language).displayLanguage.ifBlank { language } }.getOrDefault(language)
-    }
-    return "Track ${index + 1}"
-}
-
-private fun formatDuration(ms: Long): String {
-    if (ms <= 0) return "0:00"
-    val totalSec = ms / 1000
-    val h = totalSec / 3600
-    val m = (totalSec % 3600) / 60
-    val s = totalSec % 60
-    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
-}
+[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]

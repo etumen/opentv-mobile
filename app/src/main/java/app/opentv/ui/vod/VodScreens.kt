@@ -1,3 +1,5 @@
+Process started with PID 38712 (shell: powershell.exe)
+Initial output:
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -233,11 +235,13 @@ fun MoviesScreen(
 @Composable
 fun SeriesScreen(
     onOpenSeries: (Series) -> Unit,
+    onOpenCloudSeries: (ProviderItem) -> Unit,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
     onOpenSearch: () -> Unit,
     hasSources: Boolean,
     isSyncing: Boolean,
     viewModel: VodViewModel = viewModel(),
+    cloudViewModel: CloudSeriesViewModel = viewModel(),
 ) {
     val categories by viewModel.seriesCategories.collectAsState()
     // Episodes only here; films belong on the Films tab.
@@ -249,20 +253,62 @@ fun SeriesScreen(
     val vodLoading by viewModel.vodLoading.collectAsState()
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedVodSource.collectAsState()
+    val cloudProviders by cloudViewModel.providers.collectAsState()
+    val selectedCloudProviderId by cloudViewModel.selectedProviderId.collectAsState()
+    val selectedCloudSectionId by cloudViewModel.selectedSectionId.collectAsState()
+    val cloudShelves by cloudViewModel.shelves.collectAsState()
+    val cloudSectionItems by cloudViewModel.selectedSectionItems.collectAsState()
+    val cloudSectionNextPage by cloudViewModel.selectedSectionNextPage.collectAsState()
+    val cloudLoading by cloudViewModel.loading.collectAsState()
+    val cloudSectionLoading by cloudViewModel.loadingSelectedSection.collectAsState()
+    val cloudSectionLoadingMore by cloudViewModel.loadingMoreSelectedSection.collectAsState()
+
+    var diziPalVerified by remember {
+        mutableStateOf(false)
+    }
+    val needsDiziPalVerification =
+        selectedCloudProviderId == "dizipal" && !diziPalVerified
 
     LaunchedEffect(Unit) {
         if (hasSources) viewModel.ensureVodLoaded()
         viewModel.loadHomeFeeds()
     }
 
+    LaunchedEffect(selectedCloudProviderId, diziPalVerified) {
+        if (!needsDiziPalVerification) {
+            cloudViewModel.loadShelves()
+        }
+    }
+
     // Saveable: opening a title and coming back must land in the same category, not the shelves.
     var browseCategory by rememberSaveable { mutableStateOf<String?>(null) }
 
     val hasSeries by viewModel.hasSeries.collectAsState()
-    val hasContent = resume.isNotEmpty() || recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
+    val hasContent = resume.isNotEmpty() || recentlyAdded.isNotEmpty() ||
+        genreRows.isNotEmpty() || cloudShelves.isNotEmpty()
 
     Column(Modifier.fillMaxSize()) {
+        if (selectedCloudProviderId == "dizipal" && diziPalVerified) {
+            DiziPalSessionAnchor()
+        }
         SearchAffordance(onOpenSearch)
+        if (cloudProviders.isNotEmpty()) {
+            CloudProviderBrowseControls(
+                providers = cloudProviders.map {
+                    CloudMovieProvider(it.id, it.name, it.sections)
+                },
+                selectedProviderId = selectedCloudProviderId,
+                selectedSectionId = selectedCloudSectionId,
+                onSelectProvider = { id ->
+                    browseCategory = null
+                    cloudViewModel.selectProvider(id)
+                },
+                onSelectSection = { id ->
+                    browseCategory = null
+                    cloudViewModel.selectSection(id)
+                },
+            )
+        }
         if (sources.size > 1) {
             ProviderChips(
                 sources = sources,
@@ -271,19 +317,30 @@ fun SeriesScreen(
                 onSelectSource = { id -> browseCategory = null; viewModel.selectVodSource(id) },
             )
         }
-        CategoryChips(
-            // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
-            entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
-            selected = browseCategory,
-            onSelectHome = { browseCategory = null },
-            onSelectCategory = { id -> browseCategory = id; viewModel.selectSeriesCategory(id) },
-            loadCounts = viewModel::seriesCategoryCounts,
-        )
+        if (categories.isNotEmpty()) {
+            CategoryChips(
+                // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
+                entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
+                selected = browseCategory,
+                onSelectHome = { browseCategory = null },
+                onSelectCategory = { id -> browseCategory = id; viewModel.selectSeriesCategory(id) },
+                loadCounts = viewModel::seriesCategoryCounts,
+            )
+        }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
+                selectedCloudSectionId != null -> CloudSeriesCategoryGrid(
+                    items = cloudSectionItems,
+                    hasNextPage = cloudSectionNextPage != null,
+                    loading = cloudSectionLoading,
+                    loadingMore = cloudSectionLoadingMore,
+                    onOpenSeries = onOpenCloudSeries,
+                    onLoadMore = cloudViewModel::loadMoreSelectedSection,
+                )
                 browseCategory != null -> SeriesCategoryGrid(categorySeries, onOpenSeries)
                 !hasContent -> when {
-                    vodLoading || isSyncing || hasSeries != false -> LoadingVod(stringResource(R.string.vod_loading_shows))
+                    cloudLoading || vodLoading || isSyncing || hasSeries != false ->
+                        LoadingVod(stringResource(R.string.vod_loading_shows))
                     hasSources -> EmptyVod(stringResource(R.string.vod_no_shows), stringResource(R.string.vod_no_shows_provider))
                     else -> EmptyVod(stringResource(R.string.vod_no_shows), stringResource(R.string.vod_no_shows_add))
                 }
@@ -299,9 +356,28 @@ fun SeriesScreen(
                     items(genreRows, key = { "g:${it.genre}" }) { group ->
                         SeriesPosterRow(group.genre, group.items, onOpenSeries)
                     }
+                    items(
+                        cloudShelves,
+                        key = { "cloud-series:${it.providerId}:${it.section.id}" },
+                    ) { shelf ->
+                        CloudSeriesPosterRow(
+                            shelf = shelf,
+                            onOpenSeries = onOpenCloudSeries,
+                            onLoadMore = { cloudViewModel.loadMoreShelf(shelf.section.id) },
+                        )
+                    }
                 }
             }
         }
+    }
+
+    if (needsDiziPalVerification) {
+        DiziPalChallengeDialog(
+            onVerified = {
+                diziPalVerified = true
+                cloudViewModel.loadShelves(force = true)
+            },
+        )
     }
 }
 
@@ -887,3 +963,6 @@ private fun isPhone(): Boolean = LocalLayoutClass.current == LayoutClass.PHONE
 
 /** Rating to one decimal place, locale-independent (the "★" is drawn beside it). */
 internal fun formatRating(rating: Double): String = String.format(java.util.Locale.US, "%.1f", rating)
+
+
+[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]

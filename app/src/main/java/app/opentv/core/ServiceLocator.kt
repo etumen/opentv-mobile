@@ -1,4 +1,4 @@
-Process started with PID 44636 (shell: powershell.exe)
+Process started with PID 46060 (shell: powershell.exe)
 Initial output:
 /*
  * This file is part of OpenTV.
@@ -11,6 +11,7 @@ import android.content.Context
 import app.opentv.data.db.OpenTvDatabase
 import app.opentv.data.provider.ProviderRegistry
 import app.opentv.data.provider.ProviderRepository
+import app.opentv.data.provider.dizipal.DiziPalProvider
 import app.opentv.data.provider.filmmakinesi.FilmMakinesiProvider
 import app.opentv.data.provider.fullhd.FullHdFilmizleseneProvider
 import app.opentv.data.remote.StalkerApi
@@ -90,6 +91,7 @@ object ServiceLocator {
                 listOf(
                     FullHdFilmizleseneProvider(httpClient),
                     FilmMakinesiProvider(httpClient),
+                    DiziPalProvider(appContext, httpClient),
                 ),
             )
         }

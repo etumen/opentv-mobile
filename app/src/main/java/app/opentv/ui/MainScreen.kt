@@ -1,3 +1,5 @@
+Process started with PID 44468 (shell: powershell.exe)
+Initial output:
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -106,6 +108,7 @@ fun MainScreen(
     onOpenMovie: (Movie) -> Unit,
     onOpenCloudMovie: (ProviderItem) -> Unit,
     onOpenSeries: (Series) -> Unit,
+    onOpenCloudSeries: (ProviderItem) -> Unit,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
     onAddSource: () -> Unit,
     onRefresh: () -> Unit,
@@ -195,6 +198,7 @@ fun MainScreen(
             )
             Tab.SHOWS -> SeriesScreen(
                 onOpenSeries = onOpenSeries,
+                onOpenCloudSeries = onOpenCloudSeries,
                 onResume = onResume,
                 onOpenSearch = { onOpenSearch("series") },
                 hasSources = hasSources,
@@ -486,3 +490,6 @@ private fun Wordmark(modifier: Modifier = Modifier) {
         )
     }
 }
+
+
+[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]
