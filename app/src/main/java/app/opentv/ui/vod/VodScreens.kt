@@ -77,6 +77,7 @@ import app.opentv.R
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.model.Source
+import app.opentv.data.provider.ProviderItem
 import app.opentv.data.parser.displayTitle
 import app.opentv.data.parser.sourceTag
 import app.opentv.ui.VodViewModel
@@ -91,11 +92,13 @@ import coil.compose.AsyncImage
 @Composable
 fun MoviesScreen(
     onOpenMovie: (Movie) -> Unit,
+    onOpenCloudMovie: (ProviderItem) -> Unit,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
     onOpenSearch: () -> Unit,
     hasSources: Boolean,
     isSyncing: Boolean,
     viewModel: VodViewModel = viewModel(),
+    cloudViewModel: CloudVodViewModel = viewModel(),
 ) {
     val categories by viewModel.movieCategories.collectAsState()
     // Films only here; episodes belong on the Series tab.
@@ -108,12 +111,22 @@ fun MoviesScreen(
     val vodLoading by viewModel.vodLoading.collectAsState()
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedVodSource.collectAsState()
+    val cloudProviders by cloudViewModel.movieProviders.collectAsState()
+    val selectedCloudProviderId by cloudViewModel.selectedMovieProviderId.collectAsState()
+    val selectedCloudSectionId by cloudViewModel.selectedMovieSectionId.collectAsState()
+    val cloudShelves by cloudViewModel.movieShelves.collectAsState()
+    val cloudSectionItems by cloudViewModel.selectedSectionItems.collectAsState()
+    val cloudSectionNextPage by cloudViewModel.selectedSectionNextPage.collectAsState()
+    val cloudLoading by cloudViewModel.loadingMovies.collectAsState()
+    val cloudSectionLoading by cloudViewModel.loadingSelectedSection.collectAsState()
+    val cloudSectionLoadingMore by cloudViewModel.loadingMoreSelectedSection.collectAsState()
 
     // Pull the movie library the first time this tab is opened, not at login; refresh the computed
     // home rows (recommended, by-genre) on open too — cheap, and covers a library already on disk.
     LaunchedEffect(Unit) {
         if (hasSources) viewModel.ensureVodLoaded()
         viewModel.loadHomeFeeds()
+        cloudViewModel.loadMovieShelves()
     }
 
     // null = the curated home rows; a category id = that category's full grid.
@@ -122,10 +135,25 @@ fun MoviesScreen(
 
     val hasMovies by viewModel.hasMovies.collectAsState()
     val hasContent = resume.isNotEmpty() || recommended.isNotEmpty() ||
-        recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
+        recentlyAdded.isNotEmpty() || genreRows.isNotEmpty() || cloudShelves.isNotEmpty()
 
     Column(Modifier.fillMaxSize()) {
         SearchAffordance(onOpenSearch)
+        if (cloudProviders.isNotEmpty()) {
+            CloudProviderBrowseControls(
+                providers = cloudProviders,
+                selectedProviderId = selectedCloudProviderId,
+                selectedSectionId = selectedCloudSectionId,
+                onSelectProvider = { id ->
+                    browseCategory = null
+                    cloudViewModel.selectMovieProvider(id)
+                },
+                onSelectSection = { id ->
+                    browseCategory = null
+                    cloudViewModel.selectMovieSection(id)
+                },
+            )
+        }
         if (sources.size > 1) {
             ProviderChips(
                 sources = sources,
@@ -134,23 +162,34 @@ fun MoviesScreen(
                 onSelectSource = { id -> browseCategory = null; viewModel.selectVodSource(id) },
             )
         }
-        CategoryChips(
-            // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
-            entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
-            selected = browseCategory,
-            onSelectHome = { browseCategory = null },
-            onSelectCategory = { id -> browseCategory = id; viewModel.selectMovieCategory(id) },
-            loadCounts = viewModel::movieCategoryCounts,
-        )
+        if (categories.isNotEmpty()) {
+            CategoryChips(
+                // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
+                entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
+                selected = browseCategory,
+                onSelectHome = { browseCategory = null },
+                onSelectCategory = { id -> browseCategory = id; viewModel.selectMovieCategory(id) },
+                loadCounts = viewModel::movieCategoryCounts,
+            )
+        }
         // Weighted so the shelves fill the space under the fixed search + chips header, exactly and
         // unambiguously — the same reason Live TV weights its guide grid.
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
+                selectedCloudSectionId != null -> CloudMovieCategoryGrid(
+                    items = cloudSectionItems,
+                    hasNextPage = cloudSectionNextPage != null,
+                    loading = cloudSectionLoading,
+                    loadingMore = cloudSectionLoadingMore,
+                    onOpenMovie = onOpenCloudMovie,
+                    onLoadMore = cloudViewModel::loadMoreSelectedMovieSection,
+                )
                 browseCategory != null -> MovieCategoryGrid(categoryMovies, viewModel, onOpenMovie)
                 !hasContent -> when {
                     // Not a confirmed-empty library (still answering, or rows exist and the
                     // shelves are building): show progress, never "no films".
-                    vodLoading || isSyncing || hasMovies != false -> LoadingVod(stringResource(R.string.vod_loading_movies))
+                    cloudLoading || vodLoading || isSyncing || hasMovies != false ->
+                        LoadingVod(stringResource(R.string.vod_loading_movies))
                     hasSources -> EmptyVod(stringResource(R.string.vod_no_movies), stringResource(R.string.vod_no_movies_provider))
                     else -> EmptyVod(stringResource(R.string.vod_no_movies), stringResource(R.string.vod_no_movies_add))
                 }
@@ -168,6 +207,16 @@ fun MoviesScreen(
                     }
                     items(genreRows, key = { "g:${it.genre}" }) { group ->
                         MoviePosterRow(group.genre, group.items, onOpenMovie)
+                    }
+                    items(
+                        cloudShelves,
+                        key = { "cloud:${it.providerId}:${it.section.id}" },
+                    ) { shelf ->
+                        CloudMoviePosterRow(
+                            shelf = shelf,
+                            onOpenMovie = onOpenCloudMovie,
+                            onLoadMore = { cloudViewModel.loadMoreMovieShelf(shelf.section.id) },
+                        )
                     }
                 }
             }

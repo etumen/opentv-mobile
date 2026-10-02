@@ -122,6 +122,12 @@ fun VodPlayerScreen(
     streamUrl: String,
     title: String,
     userAgent: String,
+    referer: String = "",
+    streamMimeType: String = "",
+    subtitleUrl: String = "",
+    subtitleLabel: String = "",
+    subtitleLanguage: String = "",
+    subtitleMimeType: String = "",
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -137,7 +143,10 @@ fun VodPlayerScreen(
     // http/file URLs of ordinary VOD.
     val controller = remember {
         PlayerController(
-            context, scope, graph.streamingHttpClient, subtitlesEnabled = false,
+            context,
+            scope,
+            graph.streamingHttpClient,
+            subtitlesEnabled = subtitleUrl.isNotBlank(),
             smbDataSourceFactory = app.opentv.player.SmbDataSource.Factory(graph.settings),
             // Lets an `optvrec://<id>` recording play while it's still being written.
             growingDataSourceFactory =
@@ -212,16 +221,26 @@ fun VodPlayerScreen(
         }
     }
 
-    LaunchedEffect(mediaKey) {
+    LaunchedEffect(mediaKey, streamUrl, referer, streamMimeType, subtitleUrl) {
         val resumeFrom = graph.playbackPositions.get(settings.activeProfileId.value, mediaKey)
             ?.takeIf { !it.isFinished }?.positionMillis ?: 0L
         // Downloaded? Play the file — works with no signal, and spares the provider connection.
-        val url = graph.downloadRepository.localFile(mediaKey) ?: streamUrl
+        // Do not force the remote provider's MIME type onto a local downloaded file.
+        val localUrl = graph.downloadRepository.localFile(mediaKey)
+        val url = localUrl ?: streamUrl
         controller.play(
             PlayerController.Request(
                 url = url,
                 title = title,
                 userAgent = userAgent,
+                requestHeaders = buildMap {
+                    if (referer.isNotBlank()) put("Referer", referer)
+                },
+                streamMimeType = streamMimeType.takeIf { localUrl == null && it.isNotBlank() },
+                subtitleUrl = subtitleUrl.takeIf { it.isNotBlank() },
+                subtitleLabel = subtitleLabel.takeIf { it.isNotBlank() },
+                subtitleLanguage = subtitleLanguage.takeIf { it.isNotBlank() },
+                subtitleMimeType = subtitleMimeType.takeIf { it.isNotBlank() },
                 startPositionMillis = resumeFrom,
                 isLive = false,
             ),
