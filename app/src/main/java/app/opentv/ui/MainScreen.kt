@@ -134,9 +134,11 @@ fun MainScreen(
             add(Tab.DOWNLOADS)
         }
     }
-    // The default/home tab is the first visible one — Live TV normally, otherwise the first type
-    // still switched on (or Recordings if none are).
-    val homeTab = visibleTabs.first()
+    // Without an IPTV source, Live TV has nothing useful to show. A native movie provider still
+    // makes the app usable, so provider-only installs start on Movies instead of an empty Live tab.
+    val homeTab =
+        if (!hasSources && Tab.MOVIES in visibleTabs) Tab.MOVIES
+        else visibleTabs.first()
 
     // Saveable so it survives leaving for the player or a detail page: Back from an episode used
     // to land on Live TV because this state was rebuilt from scratch when the shell came back.

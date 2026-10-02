@@ -293,13 +293,19 @@ private fun OpenTvApp(isTelevision: Boolean) {
         return
     }
 
-    // First run goes straight to setup — an empty channel list with no explanation is the
-    // worst possible first impression.
-    val start = if (sourcesUi.sources.isEmpty()) Routes.ADD_SOURCE else Routes.HOME
+    // IPTV and Cloud Providers are independent source systems. If at least one native provider
+    // exists, the app is already useful even with an empty IPTV database, so do not trap the user
+    // in IPTV onboarding. Only a truly source-less install starts at Add Source.
+    val bootContext = androidx.compose.ui.platform.LocalContext.current
+    val hasCloudProviders = remember(bootContext) {
+        ServiceLocator.get(bootContext).providerRepository.providers().isNotEmpty()
+    }
+    val start =
+        if (sourcesUi.sources.isEmpty() && !hasCloudProviders) Routes.ADD_SOURCE
+        else Routes.HOME
 
     // Boot to last channel: if enabled and we have one, jump straight into the player on launch.
     // Runs once; backing out returns to the guide and doesn't re-trigger.
-    val bootContext = androidx.compose.ui.platform.LocalContext.current
     val bootSettings = remember { ServiceLocator.get(bootContext).settings }
     LaunchedEffect(start) {
         if (start == Routes.HOME && bootSettings.resumeLastChannel.value && bootSettings.lastChannelId != 0L) {
