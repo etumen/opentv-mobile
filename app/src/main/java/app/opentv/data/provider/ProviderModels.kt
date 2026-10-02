@@ -16,6 +16,7 @@ data class ProviderCatalogSection(
     val id: String,
     val title: String,
     val mediaType: ProviderMediaType,
+    val showOnHome: Boolean = true,
 )
 
 data class ProviderCatalogRequest(

@@ -37,4 +37,42 @@ class FullHdFilmizleseneProviderTest {
         assertThat(items.single().posterUrl).contains("fullhd-the-matrix-1-720p.jpg")
         assertThat(items.single().id).contains("/film/the-matrix-1/")
     }
+
+    @Test
+    fun categoryParser_readsSiteGenreMenu() {
+        val html = """
+            <header>
+              <nav>
+                <a href="/filmizle/aile-filmleri-izle-2/">Aile Filmleri</a>
+                <a href="/filmizle/aksiyon-filmler-izle-1/">Aksiyon Filmleri</a>
+                <a href="/filmizle/bilim-kurgu-filmleri-izle-1/">Bilim Kurgu Filmleri</a>
+                <a href="/filmizle/gerilim-filmleri-izle-3/">Gerilim Filmleri</a>
+                <a href="/filmizle/komedi-filmleri-izle-2/">Komedi Filmleri</a>
+                <a href="/filmizle/korku-filmleri-izle-2/">Korku Filmleri</a>
+                <a href="/filmizle/romantik-filmler-izle-1/">Romantik Filmler</a>
+              </nav>
+            </header>
+            <ul class="list">
+              <li class="film">
+                <a href="/film/the-matrix-1/">The Matrix</a>
+              </li>
+            </ul>
+        """.trimIndent()
+
+        val provider = FullHdFilmizleseneProvider(OkHttpClient())
+        val categories = provider.parseCatalogSectionLinks(
+            Jsoup.parse(html, FullHdFilmizleseneProvider.MAIN_URL),
+        )
+
+        assertThat(categories.map { it.first }).containsAtLeast(
+            "Aksiyon Filmleri",
+            "Bilim Kurgu Filmleri",
+            "Komedi Filmleri",
+            "Korku Filmleri",
+        )
+        assertThat(categories.map { it.second }).contains(
+            "/filmizle/korku-filmleri-izle-2/",
+        )
+        assertThat(categories.flatMap { it.toList() }).doesNotContain("The Matrix")
+    }
 }

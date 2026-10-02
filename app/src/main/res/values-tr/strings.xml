@@ -130,6 +130,10 @@
     <string name="cloud_choose_stream">Yayın kaynağını seç</string>
     <string name="cloud_search_title">Cloud Sağlayıcılar</string>
     <string name="cloud_no_stream">Bu sağlayıcı oynatılabilir bir yayın kaynağı döndürmedi.</string>
+    <string name="cloud_categories">Kategoriler</string>
+    <string name="cloud_home">Ana Sayfa</string>
+    <string name="cloud_filter_sources">Film kaynaklarını filtrele</string>
+    <string name="cloud_filter_categories">Kategorileri filtrele</string>
     <string name="settings_guide_title">TV rehberi</string>
     <string name="settings_guide_subtitle">Rehber kaynakları ve ücretsiz XMLTV akışları</string>
     <string name="settings_channels_subtitle">Kanalları tek tek gizleyin veya favorilere ekleyin</string>

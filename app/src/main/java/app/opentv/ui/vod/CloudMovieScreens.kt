@@ -20,14 +20,26 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +55,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.opentv.R
@@ -56,22 +70,43 @@ import kotlinx.coroutines.launch
 internal fun CloudMoviePosterRow(
     shelf: CloudMovieShelf,
     onOpenMovie: (ProviderItem) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
+    val rowState = rememberLazyListState()
+
+    LaunchedEffect(shelf.items.size, shelf.nextPage) {
+        if (shelf.nextPage == null) return@LaunchedEffect
+        snapshotFlow { rowState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
+            .collect { lastVisible ->
+                if (lastVisible >= shelf.items.lastIndex - 3) onLoadMore()
+            }
+    }
+
     Column(Modifier.fillMaxWidth()) {
-        SectionHeader("${shelf.providerName} · ${shelf.section.title}")
+        SectionHeader(shelf.section.title)
         LazyRow(
+            state = rowState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(shelf.items, key = { "${shelf.providerId}:${it.id}" }) { item ->
                 PosterCard(
                     title = item.title,
-                    tagBadge = shelf.providerName,
                     posterUrl = item.posterUrl,
                     subtitle = item.year?.toString(),
                     rating = item.rating,
                     onClick = { onOpenMovie(item) },
                 )
+            }
+            if (shelf.loadingMore) {
+                item(key = "loading:${shelf.section.id}") {
+                    androidx.compose.foundation.layout.Box(
+                        Modifier.width(72.dp).height(180.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
             }
         }
     }

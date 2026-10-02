@@ -19,6 +19,11 @@ interface Provider {
     val catalogSections: List<ProviderCatalogSection>
         get() = emptyList()
 
+    suspend fun discoverCatalogSections(
+        mediaType: ProviderMediaType,
+    ): ProviderResult<List<ProviderCatalogSection>> =
+        ProviderResult.Success(catalogSections.filter { it.mediaType == mediaType })
+
     suspend fun catalog(request: ProviderCatalogRequest): ProviderResult<ProviderCatalogPage>
 
     suspend fun search(request: ProviderSearchRequest): ProviderResult<List<ProviderItem>>

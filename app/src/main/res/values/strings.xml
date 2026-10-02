@@ -147,6 +147,10 @@
     <string name="cloud_choose_stream">Choose a stream</string>
     <string name="cloud_search_title">Cloud Providers</string>
     <string name="cloud_no_stream">No playable stream was returned by this provider.</string>
+    <string name="cloud_categories">Categories</string>
+    <string name="cloud_home">Home</string>
+    <string name="cloud_filter_sources">Filter movie sources</string>
+    <string name="cloud_filter_categories">Filter categories</string>
     <string name="settings_guide_title">TV guide</string>
     <string name="settings_guide_subtitle">Guide sources and free XMLTV feeds</string>
     <string name="settings_channels_subtitle">Hide or favourite individual channels</string>

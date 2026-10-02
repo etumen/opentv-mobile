@@ -50,8 +50,13 @@ class FullHdFilmizleseneProvider(
     override val name: String = "FullHDFilmizlesene"
     override val supportedMediaTypes: Set<ProviderMediaType> = setOf(ProviderMediaType.MOVIE)
     override val catalogSections: List<ProviderCatalogSection>
-        get() = sections.map { (id, section) ->
-            ProviderCatalogSection(id, section.title, ProviderMediaType.MOVIE)
+        get() = activeSections().map { (id, section) ->
+            ProviderCatalogSection(
+                id = id,
+                title = section.title,
+                mediaType = ProviderMediaType.MOVIE,
+                showOnHome = section.showOnHome,
+            )
         }
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -60,6 +65,7 @@ class FullHdFilmizleseneProvider(
     private data class Section(
         val title: String,
         val path: String,
+        val showOnHome: Boolean = true,
     )
 
     private data class Playback(
@@ -74,7 +80,7 @@ class FullHdFilmizleseneProvider(
 
     private val playbackCache = linkedMapOf<String, CachedPlayback>()
 
-    private val sections = linkedMapOf(
+    private val fallbackSections = linkedMapOf(
         "latest" to Section("Son Eklenen Filmler", "/"),
         "dubbed" to Section("Türkçe Dublaj Filmler", "/filmizle/turkce-dublaj-filmler-1"),
         "subtitled" to Section("Türkçe Altyazılı Filmler", "/filmizle/turkce-altyazili-filmler"),
@@ -82,10 +88,32 @@ class FullHdFilmizleseneProvider(
         "action" to Section("Aksiyon Filmleri", "/filmizle/aksiyon-filmleri"),
     )
 
+    @Volatile
+    private var discoveredSections: Map<String, Section>? = null
+
+    private fun activeSections(): Map<String, Section> =
+        discoveredSections ?: fallbackSections
+
+    override suspend fun discoverCatalogSections(
+        mediaType: ProviderMediaType,
+    ): ProviderResult<List<ProviderCatalogSection>> {
+        if (mediaType != ProviderMediaType.MOVIE) return ProviderResult.Success(emptyList())
+        discoveredSections?.let { return ProviderResult.Success(catalogSections) }
+
+        return guarded("catalogSections") {
+            val links = parseCatalogSectionLinks(fetchDocument(MAIN_URL))
+            if (links.size >= MIN_DISCOVERED_CATEGORIES) {
+                discoveredSections = mergeDiscoveredSections(links)
+            }
+            catalogSections
+        }
+    }
+
     override suspend fun catalog(
         request: ProviderCatalogRequest,
     ): ProviderResult<ProviderCatalogPage> = guarded("catalog") {
-        val section = sections[request.sectionId ?: "latest"] ?: sections.getValue("latest")
+        val sections = activeSections()
+        val section = sections[request.sectionId ?: "latest"] ?: fallbackSections.getValue("latest")
         val page = request.page.coerceAtLeast(1)
         val target = when {
             section.path == "/" && page == 1 -> MAIN_URL
@@ -219,6 +247,73 @@ class FullHdFilmizleseneProvider(
         doc.select(".list li.film, ul.film-list li, li.film, div.film")
             .mapNotNull(::parseCard)
             .distinctBy { it.id }
+
+    internal fun parseCatalogSectionLinks(doc: Document): List<Pair<String, String>> {
+        val menuLinks = doc.select(
+            "header a[href*='/filmizle/'], nav a[href*='/filmizle/'], " +
+                ".menu a[href*='/filmizle/'], .dropdown-menu a[href*='/filmizle/'], " +
+                ".sub-menu a[href*='/filmizle/']",
+        )
+        val candidates = if (menuLinks.size >= MIN_DISCOVERED_CATEGORIES) {
+            menuLinks
+        } else {
+            doc.select("a[href*='/filmizle/']")
+        }
+
+        return candidates.mapNotNull { link ->
+            val title = link.text().replace(Regex("""\s+"""), " ").trim()
+            if (title.length !in 2..60) return@mapNotNull null
+
+            val rawHref = link.attr("abs:href").ifBlank { link.attr("href") }
+            val resolved = absoluteFrom(doc.baseUri().ifBlank { MAIN_URL }, rawHref)
+                ?: return@mapNotNull null
+            val url = runCatching { resolved.toHttpUrl() }.getOrNull()
+                ?: return@mapNotNull null
+            if (!url.host.equals(baseUrl.host, ignoreCase = true)) return@mapNotNull null
+
+            val path = url.encodedPath.trimEnd('/')
+            if (!path.startsWith("/filmizle/")) return@mapNotNull null
+            val slug = path.removePrefix("/filmizle/")
+            if (slug.isBlank() || slug.contains('/')) return@mapNotNull null
+
+            title to "$path/"
+        }.distinctBy { (_, path) -> path.lowercase() }
+    }
+
+    private fun mergeDiscoveredSections(
+        links: List<Pair<String, String>>,
+    ): Map<String, Section> {
+        val merged = LinkedHashMap(fallbackSections)
+
+        links.forEach { (title, path) ->
+            val key = categoryKey(title)
+            val existing = merged.entries.firstOrNull { categoryKey(it.value.title) == key }
+            if (existing != null) {
+                merged[existing.key] = existing.value.copy(path = path)
+            } else {
+                val slug = path.removePrefix("/filmizle/").trim('/')
+                var id = "site:$slug"
+                var suffix = 2
+                while (id in merged) {
+                    id = "site:$slug-$suffix"
+                    suffix += 1
+                }
+                merged[id] = Section(
+                    title = title,
+                    path = path,
+                    showOnHome = false,
+                )
+            }
+        }
+
+        return merged
+    }
+
+    private fun categoryKey(value: String): String =
+        value.lowercase()
+            .replace(Regex("""\b(filmleri|filmler|film|izle|hd)\b"""), " ")
+            .replace(Regex("""[^\p{L}\p{N}]+"""), "")
+            .trim()
 
     private fun parseCard(element: Element): ProviderItem? {
         val link = element.selectFirst("a.tt")
@@ -562,6 +657,7 @@ class FullHdFilmizleseneProvider(
         private const val HLS_MIME = "application/x-mpegURL"
         private const val PLAYBACK_CACHE_MILLIS = 90_000L
         private const val PLAYBACK_CACHE_SIZE = 8
+        private const val MIN_DISCOVERED_CATEGORIES = 6
         private const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"

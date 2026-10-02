@@ -19,6 +19,19 @@ class ProviderRepository(
     fun providers(mediaType: ProviderMediaType? = null): List<Provider> =
         if (mediaType == null) registry.all() else registry.supporting(mediaType)
 
+    suspend fun catalogSections(
+        providerId: String,
+        mediaType: ProviderMediaType,
+    ): ProviderResult<List<ProviderCatalogSection>> {
+        val provider = registry.find(providerId) ?: return missing(providerId, "catalogSections")
+        if (mediaType !in provider.supportedMediaTypes) {
+            return unsupported(provider, "catalogSections", mediaType)
+        }
+        return call(provider, "catalogSections") {
+            provider.discoverCatalogSections(mediaType)
+        }
+    }
+
     suspend fun catalog(
         providerId: String,
         request: ProviderCatalogRequest,
