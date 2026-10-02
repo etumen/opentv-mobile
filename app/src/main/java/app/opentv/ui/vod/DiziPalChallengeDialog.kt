@@ -1,5 +1,3 @@
-Process started with PID 22476 (shell: powershell.exe)
-Initial output:
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -126,6 +124,3 @@ internal fun DiziPalSessionAnchor() {
         }
     }
 }
-
-
-[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]

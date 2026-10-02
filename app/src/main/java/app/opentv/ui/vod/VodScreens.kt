@@ -1,5 +1,3 @@
-Process started with PID 38712 (shell: powershell.exe)
-Initial output:
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -963,6 +961,3 @@ private fun isPhone(): Boolean = LocalLayoutClass.current == LayoutClass.PHONE
 
 /** Rating to one decimal place, locale-independent (the "★" is drawn beside it). */
 internal fun formatRating(rating: Double): String = String.format(java.util.Locale.US, "%.1f", rating)
-
-
-[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]

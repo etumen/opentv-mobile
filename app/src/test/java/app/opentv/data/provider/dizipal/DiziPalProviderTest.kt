@@ -1,5 +1,3 @@
-Process started with PID 48528 (shell: powershell.exe)
-Initial output:
 package app.opentv.data.provider.dizipal
 
 import com.google.common.truth.Truth.assertThat
@@ -147,6 +145,3 @@ class DiziPalProviderTest {
         )
     }
 }
-
-
-[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]

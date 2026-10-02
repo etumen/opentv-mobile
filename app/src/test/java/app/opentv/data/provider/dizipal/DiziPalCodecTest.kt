@@ -1,5 +1,3 @@
-Process started with PID 48688 (shell: powershell.exe)
-Initial output:
 package app.opentv.data.provider.dizipal
 
 import com.google.common.truth.Truth.assertThat
@@ -20,6 +18,3 @@ class DiziPalCodecTest {
             .isEqualTo("https://four.dplayer82.site/iframe.php?v=9abaeeaf0df4d6a4c53ecc72354e34d7")
     }
 }
-
-
-[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]

@@ -1,5 +1,3 @@
-Process started with PID 2328 (shell: powershell.exe)
-Initial output:
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -455,6 +453,3 @@ class FilmMakinesiProvider(private val http: OkHttpClient) : Provider {
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36"
     }
 }
-
-
-[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]
