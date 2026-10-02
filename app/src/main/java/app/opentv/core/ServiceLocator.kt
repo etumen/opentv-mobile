@@ -1,5 +1,5 @@
-[Reading 152 lines from start (total: 152 lines, 0 remaining)]
-
+Process started with PID 44636 (shell: powershell.exe)
+Initial output:
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -152,5 +152,6 @@ object ServiceLocator {
         }
     }
 }
+
 
 [executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]

@@ -1,5 +1,5 @@
-[Reading 289 lines from start (total: 289 lines, 0 remaining)]
-
+Process started with PID 13872 (shell: powershell.exe)
+Initial output:
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -289,5 +289,6 @@ internal object FilmMakinesiCodec {
         return root + if (raw.startsWith('/')) raw else "/$raw"
     }
 }
+
 
 [executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]

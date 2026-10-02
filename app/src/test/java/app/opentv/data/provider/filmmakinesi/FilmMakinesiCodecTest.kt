@@ -1,5 +1,5 @@
-[Reading 34 lines from start (total: 34 lines, 0 remaining)]
-
+Process started with PID 47256 (shell: powershell.exe)
+Initial output:
 package app.opentv.data.provider.filmmakinesi
 
 import com.google.common.truth.Truth.assertThat
@@ -34,5 +34,6 @@ class FilmMakinesiCodecTest {
         assertThat(subtitles.first().language).isEqualTo("tr")
     }
 }
+
 
 [executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]
