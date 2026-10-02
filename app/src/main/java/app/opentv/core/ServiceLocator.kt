@@ -1,3 +1,5 @@
+[Reading 152 lines from start (total: 152 lines, 0 remaining)]
+
 /*
  * This file is part of OpenTV.
  * Copyright (C) 2026 The OpenTV Contributors
@@ -9,6 +11,7 @@ import android.content.Context
 import app.opentv.data.db.OpenTvDatabase
 import app.opentv.data.provider.ProviderRegistry
 import app.opentv.data.provider.ProviderRepository
+import app.opentv.data.provider.filmmakinesi.FilmMakinesiProvider
 import app.opentv.data.provider.fullhd.FullHdFilmizleseneProvider
 import app.opentv.data.remote.StalkerApi
 import app.opentv.data.remote.XtreamApi
@@ -83,7 +86,12 @@ object ServiceLocator {
 
         /** Native cloud-provider graph. Kept independent from IPTV sources. */
         val providerRegistry: ProviderRegistry by lazy {
-            ProviderRegistry(listOf(FullHdFilmizleseneProvider(httpClient)))
+            ProviderRegistry(
+                listOf(
+                    FullHdFilmizleseneProvider(httpClient),
+                    FilmMakinesiProvider(httpClient),
+                ),
+            )
         }
         val providerRepository: ProviderRepository by lazy { ProviderRepository(providerRegistry) }
 
@@ -144,3 +152,5 @@ object ServiceLocator {
         }
     }
 }
+
+[executed on device: Benimo (e98878d2-d959-4761-afd1-1ccb28b6d450)]
