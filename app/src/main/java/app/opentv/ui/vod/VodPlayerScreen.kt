@@ -123,6 +123,7 @@ fun VodPlayerScreen(
     title: String,
     userAgent: String,
     referer: String = "",
+    streamMimeType: String = "",
     subtitleUrl: String = "",
     subtitleLabel: String = "",
     subtitleLanguage: String = "",
@@ -220,11 +221,13 @@ fun VodPlayerScreen(
         }
     }
 
-    LaunchedEffect(mediaKey, streamUrl, referer, subtitleUrl) {
+    LaunchedEffect(mediaKey, streamUrl, referer, streamMimeType, subtitleUrl) {
         val resumeFrom = graph.playbackPositions.get(settings.activeProfileId.value, mediaKey)
             ?.takeIf { !it.isFinished }?.positionMillis ?: 0L
         // Downloaded? Play the file — works with no signal, and spares the provider connection.
-        val url = graph.downloadRepository.localFile(mediaKey) ?: streamUrl
+        // Do not force the remote provider's MIME type onto a local downloaded file.
+        val localUrl = graph.downloadRepository.localFile(mediaKey)
+        val url = localUrl ?: streamUrl
         controller.play(
             PlayerController.Request(
                 url = url,
@@ -233,6 +236,7 @@ fun VodPlayerScreen(
                 requestHeaders = buildMap {
                     if (referer.isNotBlank()) put("Referer", referer)
                 },
+                streamMimeType = streamMimeType.takeIf { localUrl == null && it.isNotBlank() },
                 subtitleUrl = subtitleUrl.takeIf { it.isNotBlank() },
                 subtitleLabel = subtitleLabel.takeIf { it.isNotBlank() },
                 subtitleLanguage = subtitleLanguage.takeIf { it.isNotBlank() },

@@ -224,7 +224,7 @@ object Routes {
     // VOD plays carry the stream inline; a movie/episode is a one-off URL, not a stored id
     // the player can look up the way a channel is.
     const val VOD_PLAYER =
-        "vod?key={key}&url={url}&title={title}&ua={ua}&ref={ref}&sub={sub}&subLabel={subLabel}&subLang={subLang}&subMime={subMime}"
+        "vod?key={key}&url={url}&title={title}&ua={ua}&ref={ref}&mime={mime}&sub={sub}&subLabel={subLabel}&subLang={subLang}&subMime={subMime}"
 
     fun player(channelId: Long) = "player/$channelId"
     fun seriesDetail(seriesId: Long) = "series/$seriesId"
@@ -239,6 +239,7 @@ object Routes {
         title: String,
         ua: String,
         referer: String = "",
+        mimeType: String = "",
         subtitleUrl: String = "",
         subtitleLabel: String = "",
         subtitleLanguage: String = "",
@@ -247,7 +248,7 @@ object Routes {
         // Strict percent-encoding (space = %20, '+' = %2B). Navigation decodes query arguments once.
         fun e(v: String) = android.net.Uri.encode(v)
         return "vod?key=${e(key)}&url=${e(url)}&title=${e(title)}&ua=${e(ua)}" +
-            "&ref=${e(referer)}&sub=${e(subtitleUrl)}&subLabel=${e(subtitleLabel)}" +
+            "&ref=${e(referer)}&mime=${e(mimeType)}&sub=${e(subtitleUrl)}&subLabel=${e(subtitleLabel)}" +
             "&subLang=${e(subtitleLanguage)}&subMime=${e(subtitleMimeType)}"
     }
 }
@@ -590,6 +591,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
                                 title = details.item.title,
                                 ua = userAgent,
                                 referer = stream.headers["Referer"].orEmpty(),
+                                mimeType = stream.mimeType.orEmpty(),
                                 subtitleUrl = subtitle?.url.orEmpty(),
                                 subtitleLabel = subtitle?.label.orEmpty(),
                                 subtitleLanguage = subtitle?.language.orEmpty(),
@@ -622,6 +624,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
                     title = arg("title"),
                     userAgent = arg("ua").ifEmpty { "OpenTV/0.1 (Android)" },
                     referer = arg("ref"),
+                    streamMimeType = arg("mime"),
                     subtitleUrl = arg("sub"),
                     subtitleLabel = arg("subLabel"),
                     subtitleLanguage = arg("subLang"),

@@ -103,6 +103,8 @@ class PlayerController(
         val title: String,
         val userAgent: String,
         val requestHeaders: Map<String, String> = emptyMap(),
+        /** Explicit container type for opaque provider URLs (for example HLS without .m3u8). */
+        val streamMimeType: String? = null,
         val subtitleUrl: String? = null,
         val subtitleLabel: String? = null,
         val subtitleLanguage: String? = null,
@@ -286,6 +288,7 @@ class PlayerController(
             val mediaItem = MediaItem.Builder()
                 .setUri(request.url)
                 .apply {
+                    request.streamMimeType?.takeIf { it.isNotBlank() }?.let(::setMimeType)
                     request.subtitleUrl?.takeIf { it.isNotBlank() }?.let { subtitleUrl ->
                         setSubtitleConfigurations(
                             listOf(
