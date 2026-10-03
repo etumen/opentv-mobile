@@ -77,11 +77,13 @@ import app.opentv.R
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.model.Source
+import app.opentv.data.provider.dizipal.DiziPalProvider
 import app.opentv.data.provider.ProviderItem
 import app.opentv.data.parser.displayTitle
 import app.opentv.data.parser.sourceTag
 import app.opentv.ui.VodViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 
 /**
  * Movies: a modern, row-based home — Continue Watching, Recommended, Recently added and a row per
@@ -521,6 +523,21 @@ internal fun PosterCard(
     tagBadge: String? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val imageModel = remember(posterUrl, context) {
+        posterUrl?.let { url ->
+            if (url.contains("cdnhipter.xyz", ignoreCase = true)) {
+                ImageRequest.Builder(context)
+                    .data(url)
+                    .addHeader("User-Agent", DiziPalProvider.SITE_USER_AGENT)
+                    .addHeader("Referer", DiziPalProvider.FALLBACK_BASE_URL + "/")
+                    .addHeader("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+                    .build()
+            } else {
+                url
+            }
+        }
+    }
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "posterScale")
     Column(
         modifier
@@ -544,7 +561,7 @@ internal fun PosterCard(
                 ),
         ) {
             AsyncImage(
-                model = posterUrl,
+                model = imageModel,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
