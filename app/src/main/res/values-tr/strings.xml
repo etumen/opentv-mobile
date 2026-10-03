@@ -120,8 +120,8 @@
     <string name="player_subtitles_off">Kapalı</string>
     <string name="settings_providers_title">Sağlayıcılar</string>
     <string name="settings_providers_subtitle">IPTV kaynaklarınızı ekleyin, kaldırın ve yeniden test edin</string>
-    <string name="settings_addons_title">Eklentiler</string>
-    <string name="settings_addons_subtitle">Cloud Provider kaynaklarını yönet</string>
+    <string name="settings_cloud_providers_title">Cloud sağlayıcılar</string>
+    <string name="settings_cloud_providers_subtitle">Film ve dizi içerik sağlayıcılarını yönet</string>
     <string name="cloud_providers_note">Cloud Provider kaynakları, IPTV kaynaklarınızdan bağımsız olarak film ve dizi katalogları ekler.</string>
     <string name="cloud_providers_section">Cloud Providers</string>
     <string name="cloud_providers_empty">Henüz Cloud Provider kurulmadı</string>

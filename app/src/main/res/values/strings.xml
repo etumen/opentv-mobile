@@ -137,8 +137,8 @@
     <string name="settings_providers_title">Providers</string>
     <string name="settings_edit_provider_title">Edit provider</string>
     <string name="settings_providers_subtitle">Add, remove and re-test your IPTV sources</string>
-    <string name="settings_addons_title">Add-ons</string>
-    <string name="settings_addons_subtitle">Manage Cloud Providers</string>
+    <string name="settings_cloud_providers_title">Cloud providers</string>
+    <string name="settings_cloud_providers_subtitle">Manage movie and series content providers</string>
     <string name="cloud_providers_note">Cloud Providers add movie and series catalogues independently of your IPTV sources.</string>
     <string name="cloud_providers_section">Cloud Providers</string>
     <string name="cloud_providers_empty">No Cloud Providers installed</string>

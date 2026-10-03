@@ -24,7 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -62,7 +62,7 @@ import app.opentv.ui.LocalLayoutClass
 @Composable
 fun SettingsHubScreen(
     onOpenProviders: () -> Unit,
-    onOpenAddons: () -> Unit,
+    onOpenCloudProviders: () -> Unit,
     onOpenGuide: () -> Unit,
     onOpenChannels: () -> Unit,
     onOpenWebManager: () -> Unit,
@@ -76,7 +76,7 @@ fun SettingsHubScreen(
     val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
     val entries = listOfNotNull(
         HubEntry(Icons.Filled.Dns, stringResource(R.string.settings_providers_title), stringResource(R.string.settings_providers_subtitle), onOpenProviders),
-        HubEntry(Icons.Filled.Extension, stringResource(R.string.settings_addons_title), stringResource(R.string.settings_addons_subtitle), onOpenAddons),
+        HubEntry(Icons.Filled.Cloud, stringResource(R.string.settings_cloud_providers_title), stringResource(R.string.settings_cloud_providers_subtitle), onOpenCloudProviders),
         HubEntry(Icons.Filled.LiveTv, stringResource(R.string.settings_guide_title), stringResource(R.string.settings_guide_subtitle), onOpenGuide),
         // On a phone the Live list already does this better (favourite star, long-press → Hide), and
         // hidden channels come back via the web manager; TV keeps the d-pad manager.

@@ -22,12 +22,6 @@ class AppSettings private constructor(context: Context) {
     private val prefs =
         context.applicationContext.getSharedPreferences("opentv_settings", Context.MODE_PRIVATE)
 
-    init {
-        // Retired add-on manifests could contain personalised credentials. Do not leave those URLs
-        // behind after moving to the native provider architecture.
-        if (prefs.contains("stremio_addons")) prefs.edit().remove("stremio_addons").apply()
-    }
-
     /** How the app chooses light vs dark. TV defaults to dark under [ThemeMode.SYSTEM]. */
     enum class ThemeMode { SYSTEM, DARK, LIGHT }
 

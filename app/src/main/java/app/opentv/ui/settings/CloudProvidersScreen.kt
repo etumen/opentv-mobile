@@ -45,7 +45,7 @@ fun CloudProvidersScreen(onBack: () -> Unit) {
             .fillMaxSize()
             .screenPadding(),
     ) {
-        ScreenHeader(stringResource(R.string.settings_addons_title), onBack = onBack)
+        ScreenHeader(stringResource(R.string.settings_cloud_providers_title), onBack = onBack)
 
         Spacer(Modifier.height(8.dp))
         Text(
