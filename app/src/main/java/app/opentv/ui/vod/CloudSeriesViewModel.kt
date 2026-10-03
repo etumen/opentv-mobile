@@ -20,6 +20,8 @@ import app.opentv.data.provider.ProviderMediaType
 import app.opentv.data.provider.ProviderPlaybackTarget
 import app.opentv.data.provider.ProviderResult
 import app.opentv.data.provider.ProviderSearchRequest
+import app.opentv.data.provider.ProviderStream
+import app.opentv.data.provider.ProviderSubtitle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -43,6 +45,11 @@ data class CloudSeriesShelf(
     val items: List<ProviderItem>,
     val nextPage: Int? = null,
     val loadingMore: Boolean = false,
+)
+
+data class CloudSeriesPlayback(
+    val streams: List<ProviderStream>,
+    val subtitles: List<ProviderSubtitle>,
 )
 
 class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
@@ -207,13 +214,18 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
                 is ProviderResult.Success -> {
                     if (_selectedProviderId.value != providerId) return@launch
                     _shelves.value = _shelves.value.map { current ->
-                        if (current.section.id != sectionId) current
-                        else current.copy(
-                            items = (current.items + result.value.items)
-                                .distinctBy { item -> item.id },
-                            nextPage = result.value.nextPage,
-                            loadingMore = false,
-                        )
+                        if (current.section.id != sectionId) {
+                            current
+                        } else {
+                            val merged = (current.items + result.value.items)
+                                .distinctBy { item -> item.id }
+                            val addedNewItems = merged.size > current.items.size
+                            current.copy(
+                                items = merged,
+                                nextPage = if (addedNewItems) result.value.nextPage else null,
+                                loadingMore = false,
+                            )
+                        }
                     }
                 }
                 is ProviderResult.Failure -> {
@@ -284,10 +296,12 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
                         if (_selectedProviderId.value == providerId &&
                             _selectedSectionId.value == sectionId
                         ) {
-                            _selectedSectionItems.value =
-                                (_selectedSectionItems.value + result.value.items)
-                                    .distinctBy { it.id }
-                            _selectedSectionNextPage.value = result.value.nextPage
+                            val currentItems = _selectedSectionItems.value
+                            val merged = (currentItems + result.value.items)
+                                .distinctBy { it.id }
+                            _selectedSectionItems.value = merged
+                            _selectedSectionNextPage.value =
+                                if (merged.size > currentItems.size) result.value.nextPage else null
                         }
                     }
                     is ProviderResult.Failure -> _lastError.value = result.error
@@ -340,7 +354,7 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
         providerId: String,
         seriesId: String,
         episodeId: String,
-    ): ProviderResult<CloudPlayback> {
+    ): ProviderResult<CloudSeriesPlayback> {
         val target = ProviderPlaybackTarget.Episode(providerId, seriesId, episodeId)
         val streams = repository.streams(target)
         if (streams is ProviderResult.Failure) return streams
@@ -352,7 +366,7 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         return ProviderResult.Success(
-            CloudPlayback(
+            CloudSeriesPlayback(
                 streams = (streams as ProviderResult.Success).value,
                 subtitles = subtitleValues,
             ),
