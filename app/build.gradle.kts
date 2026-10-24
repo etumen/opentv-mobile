@@ -15,8 +15,8 @@ android {
         applicationId = "app.opentvmobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 102
-        versionName = "1.0.2"
+        versionCode = 103
+        versionName = "1.0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -102,6 +102,8 @@ ksp {
 }
 
 dependencies {
+    implementation(project(":opentv-core"))
+
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
     implementation(libs.androidx.core.ktx)

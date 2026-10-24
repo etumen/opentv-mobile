@@ -6,9 +6,16 @@
 package app.opentv.core
 
 import android.content.Context
+import app.opentv.data.catalog.CatalogAggregator
+import app.opentv.data.catalog.ProviderHealthTracker
+import app.opentv.data.catalog.UnifiedSeriesResolver
 import app.opentv.data.db.OpenTvDatabase
+import app.opentv.data.metadata.ImdbSuggestionMetadataSource
+import app.opentv.data.metadata.MetadataRepository
+import app.opentv.data.metadata.SharedPreferencesMetadataCache
 import app.opentv.data.provider.ProviderRegistry
 import app.opentv.data.provider.ProviderRepository
+import app.opentv.data.provider.ddizibox.DiziBoxProvider
 import app.opentv.data.provider.dizipal.DiziPalProvider
 import app.opentv.data.provider.filmmakinesi.FilmMakinesiProvider
 import app.opentv.data.provider.fullhd.FullHdFilmizleseneProvider
@@ -90,10 +97,33 @@ object ServiceLocator {
                     FullHdFilmizleseneProvider(httpClient),
                     FilmMakinesiProvider(httpClient),
                     DiziPalProvider(appContext, httpClient),
+                    DiziBoxProvider(httpClient),
                 ),
             )
         }
         val providerRepository: ProviderRepository by lazy { ProviderRepository(providerRegistry) }
+        val unifiedCatalog: CatalogAggregator by lazy { CatalogAggregator(providerRepository) }
+        val providerHealth: ProviderHealthTracker by lazy {
+            ProviderHealthTracker(
+                appContext.getSharedPreferences("provider_health", Context.MODE_PRIVATE),
+            )
+        }
+        val metadataRepository: MetadataRepository by lazy {
+            MetadataRepository(
+                sources = listOf(ImdbSuggestionMetadataSource(httpClient)),
+                cache = SharedPreferencesMetadataCache(
+                    appContext.getSharedPreferences("content_metadata", Context.MODE_PRIVATE),
+                ),
+            )
+        }
+        val unifiedSeries: UnifiedSeriesResolver by lazy {
+            UnifiedSeriesResolver(
+                repository = providerRepository,
+                catalog = unifiedCatalog,
+                health = providerHealth,
+                metadata = metadataRepository,
+            )
+        }
 
         val sourceRepository: SourceRepository by lazy {
             SourceRepository(database.sources(), xtreamApi, stalkerApi)
