@@ -1,0 +1,39 @@
+name: OpenTV Provider Health
+
+on:
+  schedule:
+    # UTC 00:17, 06:17, 12:17, 18:17; best-effort GitHub scheduler.
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - "config/providers.json"
+      - "scripts/provider_health.py"
+      - ".github/workflows/provider-health.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opentv-provider-health
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout monitored configuration
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate manifest and probe provider websites
+        run: python3 scripts/provider_health.py --config config/providers.json --output provider-health.json
+      - name: Upload observation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opentv-provider-health-${{ github.run_id }}
+          path: provider-health.json
+          if-no-files-found: warn
+          retention-days: 14
