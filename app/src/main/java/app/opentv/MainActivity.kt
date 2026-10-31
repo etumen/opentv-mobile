@@ -79,13 +79,16 @@ import app.opentv.ui.settings.EpgSettingsScreen
 import app.opentv.ui.settings.ParentalControlsScreen
 import app.opentv.ui.settings.ProfilesScreen
 import app.opentv.ui.settings.ProvidersScreen
-import app.opentv.ui.settings.StremioAddonsScreen
+import app.opentv.ui.settings.CloudProvidersScreen
+import app.opentv.ui.settings.ProviderDiagnosticsScreen
 import app.opentv.ui.settings.RecordingSettingsScreen
 import app.opentv.ui.settings.SyncScreen
 import app.opentv.ui.settings.SettingsHubScreen
 import app.opentv.ui.settings.WebManagerScreen
 import app.opentv.ui.theme.OpenTvTheme
 import app.opentv.ui.vod.MovieDetailScreen
+import app.opentv.ui.vod.CloudMovieDetailScreen
+import app.opentv.ui.vod.CloudSeriesDetailScreen
 import app.opentv.ui.vod.PersonScreen
 import app.opentv.ui.vod.SeriesDetailScreen
 import app.opentv.ui.vod.VodPlayerScreen
@@ -203,7 +206,8 @@ object Routes {
     const val APP_SETTINGS = "app-settings"
     const val SETTINGS_HUB = "settings"
     const val PROVIDERS = "providers"
-    const val ADDONS = "addons"
+    const val CLOUD_PROVIDERS = "cloud-providers"
+    const val PROVIDER_DIAGNOSTICS = "provider-diagnostics"
     const val CHANNELS = "channels"
     const val WEB_MANAGER = "web-manager"
     const val PROFILES = "profiles"
@@ -213,27 +217,62 @@ object Routes {
     const val ABOUT = "about"
     const val SERIES_DETAIL = "series/{seriesId}"
     const val MOVIE_DETAIL = "movie/{movieId}"
+    const val CLOUD_MOVIE_DETAIL = "cloud-movie/{providerId}?itemId={itemId}"
+    const val CLOUD_SERIES_DETAIL = "cloud-series/{providerId}?itemId={itemId}"
     const val EDIT_SOURCE = "edit-source/{sourceId}"
 
     // A person's name goes in a query arg, URL-encoded, so spaces and punctuation survive the round
-    // trip — the same inline-encode/decode approach as the VOD player below.
+    // trip.
     const val PERSON = "person?name={name}"
 
-    // VOD plays carry the stream inline; a movie/episode is a one-off URL, not a stored id
-    // the player can look up the way a channel is.
-    const val VOD_PLAYER = "vod?key={key}&url={url}&title={title}&ua={ua}"
+    // One-off VOD payloads stay in memory. Only a short token travels through Navigation:
+    // provider URLs can be huge (DiziPal may return an entire HLS playlist as a data: URI).
+    const val VOD_PLAYER = "vod/{token}"
 
     fun player(channelId: Long) = "player/$channelId"
     fun seriesDetail(seriesId: Long) = "series/$seriesId"
     fun movieDetail(movieId: Long) = "movie/$movieId"
+    fun cloudMovieDetail(providerId: String, itemId: String): String =
+        "cloud-movie/${android.net.Uri.encode(providerId)}?itemId=${android.net.Uri.encode(itemId)}"
+    fun cloudSeriesDetail(providerId: String, itemId: String): String =
+        "cloud-series/${android.net.Uri.encode(providerId)}?itemId=${android.net.Uri.encode(itemId)}"
     fun editSource(sourceId: Long) = "edit-source/$sourceId"
     fun person(name: String) = "person?name=${java.net.URLEncoder.encode(name, "UTF-8")}"
-    fun vodPlayer(key: String, url: String, title: String, ua: String): String {
-        // Strict percent-encoding (space = %20, '+' = %2B). Navigation decodes query arguments once;
-        // the old URLEncoder + second URLDecoder pass turned every '+' into a space — breaking
-        // titles like "A+ …" and any stream URL carrying a '+' in a token.
-        fun e(v: String) = android.net.Uri.encode(v)
-        return "vod?key=${e(key)}&url=${e(url)}&title=${e(title)}&ua=${e(ua)}"
+    fun vodPlayer(
+        key: String,
+        url: String,
+        title: String,
+        ua: String,
+        referer: String = "",
+        cookie: String = "",
+        origin: String = "",
+        mimeType: String = "",
+        subtitleUrl: String = "",
+        subtitleLabel: String = "",
+        subtitleLanguage: String = "",
+        subtitleMimeType: String = "",
+        headers: Map<String, String> = emptyMap(),
+        fallback: app.opentv.ui.vod.UnifiedFallbackContext? = null,
+    ): String {
+        val token = app.opentv.ui.vod.VodPlaybackHandoff.put(
+            app.opentv.ui.vod.VodPlaybackHandoff.Request(
+                mediaKey = key,
+                streamUrl = url,
+                title = title,
+                userAgent = ua,
+                referer = referer,
+                cookie = cookie,
+                origin = origin,
+                streamMimeType = mimeType,
+                subtitleUrl = subtitleUrl,
+                subtitleLabel = subtitleLabel,
+                subtitleLanguage = subtitleLanguage,
+                subtitleMimeType = subtitleMimeType,
+                headers = headers,
+                fallback = fallback,
+            ),
+        )
+        return "vod/$token"
     }
 }
 
@@ -278,13 +317,19 @@ private fun OpenTvApp(isTelevision: Boolean) {
         return
     }
 
-    // First run goes straight to setup — an empty channel list with no explanation is the
-    // worst possible first impression.
-    val start = if (sourcesUi.sources.isEmpty()) Routes.ADD_SOURCE else Routes.HOME
+    // IPTV and Cloud Providers are independent source systems. If at least one native provider
+    // exists, the app is already useful even with an empty IPTV database, so do not trap the user
+    // in IPTV onboarding. Only a truly source-less install starts at Add Source.
+    val bootContext = androidx.compose.ui.platform.LocalContext.current
+    val hasCloudProviders = remember(bootContext) {
+        ServiceLocator.get(bootContext).providerRepository.providers().isNotEmpty()
+    }
+    val start =
+        if (sourcesUi.sources.isEmpty() && !hasCloudProviders) Routes.ADD_SOURCE
+        else Routes.HOME
 
     // Boot to last channel: if enabled and we have one, jump straight into the player on launch.
     // Runs once; backing out returns to the guide and doesn't re-trigger.
-    val bootContext = androidx.compose.ui.platform.LocalContext.current
     val bootSettings = remember { ServiceLocator.get(bootContext).settings }
     LaunchedEffect(start) {
         if (start == Routes.HOME && bootSettings.resumeLastChannel.value && bootSettings.lastChannelId != 0L) {
@@ -365,8 +410,14 @@ private fun OpenTvApp(isTelevision: Boolean) {
                     onOpenMovie = { movie ->
                         navController.navigate(Routes.movieDetail(movie.id))
                     },
+                    onOpenCloudMovie = { movie ->
+                        navController.navigate(Routes.cloudMovieDetail(movie.providerId, movie.id))
+                    },
                     onOpenSeries = { series ->
                         navController.navigate(Routes.seriesDetail(series.id))
+                    },
+                    onOpenCloudSeries = { series ->
+                        navController.navigate(Routes.cloudSeriesDetail(series.providerId, series.id))
                     },
                     onResume = { key, url, title ->
                         navController.navigate(
@@ -423,6 +474,9 @@ private fun OpenTvApp(isTelevision: Boolean) {
                 SearchScreen(
                     initialScope = entry.arguments?.getString("scope") ?: "all",
                     onOpenMovie = { movie -> navController.navigate(Routes.movieDetail(movie.id)) },
+                    onOpenCloudMovie = { movie ->
+                        navController.navigate(Routes.cloudMovieDetail(movie.providerId, movie.id))
+                    },
                     onPlayChannel = { channel -> navController.navigate(Routes.player(channel.id)) },
                     onPlayMovie = { movie ->
                         navController.navigate(
@@ -442,7 +496,8 @@ private fun OpenTvApp(isTelevision: Boolean) {
             composable(Routes.SETTINGS_HUB) {
                 SettingsHubScreen(
                     onOpenProviders = { navController.navigate(Routes.PROVIDERS) },
-                    onOpenAddons = { navController.navigate(Routes.ADDONS) },
+                    onOpenCloudProviders = { navController.navigate(Routes.CLOUD_PROVIDERS) },
+                    onOpenProviderDiagnostics = { navController.navigate(Routes.PROVIDER_DIAGNOSTICS) },
                     onOpenGuide = { navController.navigate(Routes.EPG_SETTINGS) },
                     onOpenChannels = { navController.navigate(Routes.CHANNELS) },
                     onOpenWebManager = { navController.navigate(Routes.WEB_MANAGER) },
@@ -484,8 +539,13 @@ private fun OpenTvApp(isTelevision: Boolean) {
                 )
             }
 
-            composable(Routes.ADDONS) {
-                StremioAddonsScreen(onBack = { navController.popBackStack() })
+            composable(Routes.CLOUD_PROVIDERS) {
+                CloudProvidersScreen(onBack = { navController.popBackStack() })
+            }
+            if (BuildConfig.DEBUG) {
+                composable(Routes.PROVIDER_DIAGNOSTICS) {
+                    ProviderDiagnosticsScreen(onBack = { navController.popBackStack() })
+                }
             }
 
             composable(Routes.ABOUT) {
@@ -539,13 +599,88 @@ private fun OpenTvApp(isTelevision: Boolean) {
                             ),
                         )
                     },
-                    onPlayUrl = { key, url, title ->
-                        navController.navigate(
-                            Routes.vodPlayer(key = key, url = url, title = title, ua = "OpenTV/0.1 (Android)"),
-                        )
-                    },
                     onOpenMovie = { movie -> navController.navigate(Routes.movieDetail(movie.id)) },
                     onOpenPerson = { name -> navController.navigate(Routes.person(name)) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.CLOUD_MOVIE_DETAIL) { entry ->
+                val providerId = entry.arguments?.getString("providerId").orEmpty()
+                val itemId = entry.arguments?.getString("itemId").orEmpty()
+                if (providerId.isBlank() || itemId.isBlank()) return@composable
+
+                CloudMovieDetailScreen(
+                    providerId = providerId,
+                    itemId = itemId,
+                    onPlay = { details, stream, subtitle ->
+                        val userAgent = stream.headers["User-Agent"]
+                            ?: "OpenTV/0.1 (Android)"
+                        navController.navigate(
+                            Routes.vodPlayer(
+                                key = "cloud:$providerId:${itemId.hashCode()}",
+                                url = stream.url,
+                                title = details.item.title,
+                                ua = userAgent,
+                                referer = stream.headers["Referer"].orEmpty(),
+                                cookie = stream.headers["Cookie"].orEmpty(),
+                                origin = stream.headers["Origin"].orEmpty(),
+                                mimeType = stream.mimeType.orEmpty(),
+                                subtitleUrl = subtitle?.url.orEmpty(),
+                                subtitleLabel = subtitle?.label.orEmpty(),
+                                subtitleLanguage = subtitle?.language.orEmpty(),
+                                subtitleMimeType = subtitle?.mimeType.orEmpty(),
+                                headers = stream.headers,
+                                fallback = app.opentv.ui.vod.UnifiedFallbackContext(
+                                    app.opentv.data.provider.ProviderMediaType.MOVIE,
+                                    app.opentv.ui.vod.UnifiedCatalogAlternatives
+                                        .alternatives(providerId, itemId).filterNot { it.providerId == stream.providerId },
+                                ),
+                            ),
+                        )
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.CLOUD_SERIES_DETAIL) { entry ->
+                val providerId = entry.arguments?.getString("providerId").orEmpty()
+                val itemId = entry.arguments?.getString("itemId").orEmpty()
+                if (providerId.isBlank() || itemId.isBlank()) return@composable
+
+                CloudSeriesDetailScreen(
+                    providerId = providerId,
+                    itemId = itemId,
+                    onPlayEpisode = { details, episode, stream, subtitle ->
+                        val userAgent = stream.headers["User-Agent"]
+                            ?: "OpenTV/0.1 (Android)"
+                        val title =
+                            details.item.title + " · S" + episode.season + " B" + episode.episodeNumber
+                        navController.navigate(
+                            Routes.vodPlayer(
+                                key = "cloud-ep:" + providerId + ":" + episode.id.hashCode(),
+                                url = stream.url,
+                                title = title,
+                                ua = userAgent,
+                                referer = stream.headers["Referer"].orEmpty(),
+                                cookie = stream.headers["Cookie"].orEmpty(),
+                                origin = stream.headers["Origin"].orEmpty(),
+                                mimeType = stream.mimeType.orEmpty(),
+                                subtitleUrl = subtitle?.url.orEmpty(),
+                                subtitleLabel = subtitle?.label.orEmpty(),
+                                subtitleLanguage = subtitle?.language.orEmpty(),
+                                subtitleMimeType = subtitle?.mimeType.orEmpty(),
+                                headers = stream.headers,
+                                fallback = app.opentv.ui.vod.UnifiedFallbackContext(
+                                    app.opentv.data.provider.ProviderMediaType.SERIES,
+                                    app.opentv.ui.vod.UnifiedCatalogAlternatives
+                                        .alternatives(providerId, itemId).filterNot { it.providerId == stream.providerId },
+                                    season = episode.season,
+                                    episodeNumber = episode.episodeNumber,
+                                ),
+                            ),
+                        )
+                    },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -563,13 +698,27 @@ private fun OpenTvApp(isTelevision: Boolean) {
             }
 
             composable(Routes.VOD_PLAYER) { entry ->
-                // Already decoded by Navigation — see Routes.vodPlayer.
-                fun arg(name: String) = entry.arguments?.getString(name).orEmpty()
+                val token = entry.arguments?.getString("token").orEmpty()
+                val request = remember(token) { app.opentv.ui.vod.VodPlaybackHandoff.take(token) }
+                if (request == null) {
+                    LaunchedEffect(token) { navController.popBackStack() }
+                    return@composable
+                }
                 VodPlayerScreen(
-                    mediaKey = arg("key"),
-                    streamUrl = arg("url"),
-                    title = arg("title"),
-                    userAgent = arg("ua").ifEmpty { "OpenTV/0.1 (Android)" },
+                    mediaKey = request.mediaKey,
+                    streamUrl = request.streamUrl,
+                    title = request.title,
+                    userAgent = request.userAgent.ifEmpty { "OpenTV/0.1 (Android)" },
+                    referer = request.referer,
+                    cookie = request.cookie,
+                    origin = request.origin,
+                    streamMimeType = request.streamMimeType,
+                    subtitleUrl = request.subtitleUrl,
+                    subtitleLabel = request.subtitleLabel,
+                    subtitleLanguage = request.subtitleLanguage,
+                    subtitleMimeType = request.subtitleMimeType,
+                    headers = request.headers,
+                    fallbackContext = request.fallback,
                     onBack = { navController.popBackStack() },
                 )
             }

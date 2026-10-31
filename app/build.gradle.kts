@@ -15,8 +15,8 @@ android {
         applicationId = "app.opentvmobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 100
-        versionName = "1.0.0"
+        versionCode = 103
+        versionName = "1.0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -101,7 +101,15 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Keep Robolectric/Conscrypt native-library lookup locale-stable on Turkish Windows.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+}
+
 dependencies {
+    implementation(project(":opentv-core"))
+
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
     implementation(libs.androidx.core.ktx)
@@ -135,6 +143,7 @@ dependencies {
 
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+    implementation("org.jsoup:jsoup:1.22.2")
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.work.runtime)

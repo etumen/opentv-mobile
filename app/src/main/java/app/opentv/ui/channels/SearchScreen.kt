@@ -70,11 +70,13 @@ import app.opentv.R
 import app.opentv.data.model.Channel
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
+import app.opentv.data.provider.ProviderItem
 import app.opentv.data.model.shownName
 import app.opentv.data.parser.displayTitle
 import app.opentv.data.parser.sourceTag
 import app.opentv.ui.ChannelsViewModel
 import app.opentv.ui.VodViewModel
+import app.opentv.ui.vod.CloudVodViewModel
 import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -91,6 +93,7 @@ import java.util.Locale
 fun SearchScreen(
     onPlayChannel: (Channel) -> Unit,
     onPlayMovie: (Movie) -> Unit,
+    onOpenCloudMovie: (ProviderItem) -> Unit,
     onOpenSeries: (Series) -> Unit,
     onBack: () -> Unit,
     initialScope: String = "all",
@@ -98,16 +101,29 @@ fun SearchScreen(
     onOpenMovie: (Movie) -> Unit = onPlayMovie,
     viewModel: ChannelsViewModel = viewModel(),
     vodViewModel: VodViewModel = viewModel(),
+    cloudViewModel: CloudVodViewModel = viewModel(),
 ) {
     if (LocalLayoutClass.current == LayoutClass.PHONE) {
-        PhoneSearchScreen(onPlayChannel, onOpenMovie, onOpenSeries, onBack, initialScope, viewModel, vodViewModel)
+        PhoneSearchScreen(
+            onPlayChannel,
+            onOpenMovie,
+            onOpenCloudMovie,
+            onOpenSeries,
+            onBack,
+            initialScope,
+            viewModel,
+            vodViewModel,
+            cloudViewModel,
+        )
         return
     }
     var query by remember { mutableStateOf("") }
     val channelResults by viewModel.searchResults.collectAsState()
     val movieResults by vodViewModel.movieResults.collectAsState()
+    val cloudMovieResults by cloudViewModel.movieSearchResults.collectAsState()
     val seriesResults by vodViewModel.seriesResults.collectAsState()
-    val anyResults = channelResults.isNotEmpty() || movieResults.isNotEmpty() || seriesResults.isNotEmpty()
+    val anyResults = channelResults.isNotEmpty() || movieResults.isNotEmpty() ||
+        cloudMovieResults.isNotEmpty() || seriesResults.isNotEmpty()
 
     LaunchedEffect(query) {
         viewModel.setSearchQuery(query)
@@ -165,6 +181,24 @@ fun SearchScreen(
                                 }
                             }
                         }
+                        if (cloudMovieResults.isNotEmpty()) {
+                            item { SectionHeader(stringResource(R.string.cloud_search_title)) }
+                            items(
+                                cloudMovieResults,
+                                key = { "cm:${it.providerId}:${it.id}" },
+                            ) { movie ->
+                                VodResultRow(
+                                    movie.title,
+                                    movie.posterUrl,
+                                    listOfNotNull(
+                                        cloudViewModel.providerName(movie.providerId),
+                                        movie.year?.toString(),
+                                    ).joinToString("  ·  "),
+                                ) {
+                                    onOpenCloudMovie(movie)
+                                }
+                            }
+                        }
                         if (seriesResults.isNotEmpty()) {
                             item { SectionHeader(stringResource(R.string.nav_shows)) }
                             items(seriesResults, key = { "s${it.id}" }) { show ->
@@ -189,16 +223,19 @@ fun SearchScreen(
 private fun PhoneSearchScreen(
     onPlayChannel: (Channel) -> Unit,
     onPlayMovie: (Movie) -> Unit,
+    onOpenCloudMovie: (ProviderItem) -> Unit,
     onOpenSeries: (Series) -> Unit,
     onBack: () -> Unit,
     initialScope: String,
     viewModel: ChannelsViewModel,
     vodViewModel: VodViewModel,
+    cloudViewModel: CloudVodViewModel,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var scope by rememberSaveable { mutableStateOf(initialScope) }
     val channelResults by viewModel.searchResults.collectAsState()
     val movieResults by vodViewModel.movieResults.collectAsState()
+    val cloudMovieResults by cloudViewModel.movieSearchResults.collectAsState()
     val seriesResults by vodViewModel.seriesResults.collectAsState()
     val showChannels = scope == "all" || scope == "channels"
     val showMovies = scope == "all" || scope == "movies"
@@ -218,10 +255,12 @@ private fun PhoneSearchScreen(
     }
     LaunchedEffect(tagOptions) { if (tag != null && tag !in tagOptions) tag = null }
     val movies = if (tag == null) movieResults else movieResults.filter { tag in movieTags[it.id].orEmpty() }
+    val cloudMovies = if (tag == null) cloudMovieResults else emptyList()
     val shows = if (tag == null) seriesResults else seriesResults.filter { tag in seriesTags[it.id].orEmpty() }
 
     val anyResults = (showChannels && channelResults.isNotEmpty()) ||
-        (showMovies && movies.isNotEmpty()) || (showSeries && shows.isNotEmpty())
+        (showMovies && (movies.isNotEmpty() || cloudMovies.isNotEmpty())) ||
+        (showSeries && shows.isNotEmpty())
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
@@ -233,6 +272,7 @@ private fun PhoneSearchScreen(
     LaunchedEffect(query) {
         viewModel.setSearchQuery(query)
         vodViewModel.setVodSearchQuery(query)
+        cloudViewModel.setMovieSearchQuery(query)
     }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
@@ -324,6 +364,16 @@ private fun PhoneSearchScreen(
                         if (scope == "all") item { SectionHeader(stringResource(R.string.nav_movies)) }
                         items(movies, key = { "m${it.id}" }) { movie ->
                             VodResultRow(movie.displayTitle, movie.posterUrl, listOfNotNull(movie.sourceTag, movie.year?.toString()).joinToString("  ·  ")) { saveSearch(); onPlayMovie(movie) }
+                        }
+                    }
+                    if (showMovies && cloudMovies.isNotEmpty()) {
+                        item { SectionHeader(stringResource(R.string.cloud_search_title)) }
+                        items(cloudMovies, key = { "cm:${it.providerId}:${it.id}" }) { movie ->
+                            VodResultRow(
+                                movie.title,
+                                movie.posterUrl,
+                                listOfNotNull(cloudViewModel.providerName(movie.providerId), movie.year?.toString()).joinToString("  ·  "),
+                            ) { saveSearch(); onOpenCloudMovie(movie) }
                         }
                     }
                     if (showSeries && shows.isNotEmpty()) {

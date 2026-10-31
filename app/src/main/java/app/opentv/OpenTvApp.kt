@@ -7,12 +7,14 @@ package app.opentv
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import app.opentv.core.LocaleUtils
 import app.opentv.core.ServiceLocator
 import app.opentv.data.repo.CatalogRepository
 import app.opentv.data.work.SyncWorker
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import okhttp3.OkHttpClient
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +38,23 @@ class OpenTvApp : Application(), ImageLoaderFactory {
      */
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
+            .okHttpClient {
+                OkHttpClient.Builder()
+                    .addInterceptor { chain ->
+                        val request = chain.request()
+                        val host = request.url.host
+                        val builder = request.newBuilder()
+                            .header(
+                                "User-Agent",
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                            )
+                        if (request.header("Referer") == null) {
+                            builder.header("Referer", "https://$host/")
+                        }
+                        chain.proceed(builder.build())
+                    }
+                    .build()
+            }
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.25)
@@ -59,9 +78,67 @@ class OpenTvApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         val graph = ServiceLocator.get(this)
+        // Apply the cached rules immediately; check the owner-published HTTPS JSON once on launch.
+        graph.remoteProviderConfig
+        appScope.launch { graph.remoteProviderConfig.refresh() }
         app.opentv.player.PlaybackErrors.context = this
         app.opentv.core.AppText.init(this)
         SyncWorker.schedule(this)
+
+        // OpenTV ships with IPTV-ORG Turkey as a built-in live-TV starter source. A catalog
+        // version gives managed official/fallback rows a one-time refresh without re-syncing on
+        // every launch.
+        appScope.launch {
+            runCatching {
+                // Remove only the exact retired Famelack test source from older tester installs.
+                // User-added sources with any other URL are untouched.
+                graph.sourceRepository.enabled()
+                    .firstOrNull {
+                        it.kind == app.opentv.data.model.SourceKind.M3U &&
+                            it.url == app.opentv.data.repo.SourceRepository.LEGACY_FAMELACK_URL
+                    }
+                    ?.let { graph.catalogRepository.deleteSource(it.id) }
+
+                val ensured = graph.sourceRepository.ensureBuiltInTurkeySource()
+                val prefs = getSharedPreferences("opentv", MODE_PRIVATE)
+                val seenCatalogVersion = prefs.getInt("built_in_turkey_catalog_version", 0)
+                if (
+                    ensured.created ||
+                    ensured.source.lastCatalogSyncMillis == 0L ||
+                    seenCatalogVersion < CatalogRepository.BUILT_IN_TURKEY_CATALOG_VERSION
+                ) {
+                    val result = graph.catalogRepository.syncLive(
+                        ensured.source,
+                        System.currentTimeMillis(),
+                    )
+                    if (result is CatalogRepository.SyncResult.Success) {
+                        prefs.edit()
+                            .putInt(
+                                "built_in_turkey_catalog_version",
+                                CatalogRepository.BUILT_IN_TURKEY_CATALOG_VERSION,
+                            )
+                            .apply()
+                    }
+                }
+            }.onFailure {
+                Log.w("OpenTV", "Built-in IPTV-ORG Turkey bootstrap failed", it)
+            }
+        }
+
+        // SporB stays absent on a normal install. Once the local feature code has enabled it,
+        // keep the managed source present and retry an empty first sync on later launches.
+        if (graph.settings.sporbEnabled.value) {
+            appScope.launch {
+                runCatching {
+                    val ensured = graph.sourceRepository.ensureSporbSource()
+                    if (ensured.created || ensured.source.lastCatalogSyncMillis == 0L) {
+                        graph.catalogRepository.syncLive(ensured.source, System.currentTimeMillis())
+                    }
+                }.onFailure {
+                    Log.w("OpenTV", "Unlocked SporB bootstrap failed", it)
+                }
+            }
+        }
 
         // When the normaliser has moved on since the catalogue was last processed, re-clean
         // the stored channels and re-run the guide matcher — locally, no re-download. This

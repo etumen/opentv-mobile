@@ -23,11 +23,11 @@ import app.opentv.data.model.Programme
 import app.opentv.data.model.Series
 import app.opentv.data.model.Source
 import app.opentv.data.model.SourceKind
-import app.opentv.data.model.StremioStream
 import app.opentv.data.model.StreamKind
 import app.opentv.data.parser.displayTitle
 import app.opentv.data.parser.VodTitleCleaner
 import app.opentv.data.parser.ChannelNameNormalizer
+import app.opentv.data.parser.TurkeyChannelPlan
 import app.opentv.data.repo.CatalogRepository
 import app.opentv.data.repo.GenreGroup
 import app.opentv.data.repo.MovieVariantGroup
@@ -50,7 +50,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onEach
@@ -344,6 +343,8 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
         val next: Programme?,
         /** Every programme for this channel inside the guide window, start-ordered. */
         val programmes: List<Programme>,
+        /** Compact presentation number after source-independent Turkey ordering. */
+        val number: Int = 0,
     ) {
         val key: Any get() = if (primary.groupKey.isEmpty()) primary.id else primary.groupKey
     }
@@ -451,8 +452,14 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
                 val allowedIds = key.allowedIds
                 val baseFlow = when {
                     // Recent: look up the played ids in order (a handful), newest first.
-                    key.recents -> settings.recentChannels.mapLatest { ids ->
-                        ids.mapNotNull { graph.catalogRepository.channel(it) }.filterNot { it.hidden }
+                    key.recents -> combine(
+                        settings.recentChannels,
+                        graph.sourceRepository.observeAll(),
+                    ) { ids, sources ->
+                        ids to sources.filter { it.enabled }.map { it.id }.toSet()
+                    }.mapLatest { (ids, enabledSourceIds) ->
+                        ids.mapNotNull { graph.catalogRepository.channel(it) }
+                            .filter { !it.hidden && it.sourceId in enabledSourceIds }
                     }
                     key.favs -> graph.catalogRepository.observeFavouriteChannels()
                     key.categoryIds != null -> graph.catalogRepository.observeChannelsIn(key.categoryIds)
@@ -508,7 +515,7 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
                 when (sort) {
                     AppSettings.ChannelSort.PROVIDER -> rows
                     AppSettings.ChannelSort.NAME -> rows.sortedBy { it.primary.shownName.lowercase() }
-                    AppSettings.ChannelSort.NUMBER -> rows.sortedWith(compareBy(nullsLast()) { it.primary.number })
+                    AppSettings.ChannelSort.NUMBER -> rows.sortedBy { it.number }
                 }
             }
             // Grouping thousands of channels against a 12-hour, all-feeds programme window is heavy
@@ -538,8 +545,13 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
 
         val total = groups.size.coerceAtLeast(1)
         var built = 0
-        return groups.values.map { group ->
-            group.sortByDescending { it.qualityRank }
+        val builtRows = groups.values.map { group ->
+            group.sortWith(
+                compareBy<Channel> { TurkeyChannelPlan.playbackSourcePriority(it.streamId) }
+                    .thenBy { TurkeyChannelPlan.fallbackPriority(it.name) }
+                    .thenByDescending { it.qualityRank }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name },
+            )
             // Only genuinely different qualities are switchable; identical-quality dupes
             // (same stream in two categories) collapse to one, so no false "2 qualities".
             val variants = distinctByQuality(group)
@@ -571,6 +583,16 @@ class ChannelsViewModel(app: Application) : AndroidViewModel(app) {
                 programmes = list,
             )
         }
+
+        // Known Turkish channels follow one source-independent presentation plan. Missing channels
+        // collapse naturally, so the displayed number is always compact.
+        return builtRows
+            .sortedWith(
+                compareBy<Row> {
+                    TurkeyChannelPlan.orderIndex(it.primary.shownName) ?: Int.MAX_VALUE
+                }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.primary.shownName },
+            )
+            .mapIndexed { index, row -> row.copy(number = index + 1) }
     }
 
     /** A friendly, size-aware line for the load — a small provider gets a quick word, a huge one
@@ -918,29 +940,6 @@ class VodViewModel(app: Application) : AndroidViewModel(app) {
     fun selectMovieCategory(id: String?) { movieCategory.value = id }
 
     fun selectSeriesCategory(id: String?) { seriesCategory.value = id }
-
-    /** True when at least one Stremio add-on is configured — gates the "add-on sources" button. */
-    val hasAddons: StateFlow<Boolean> =
-        settings.stremioAddons
-            .map { it.isNotEmpty() }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), settings.stremioAddons.value.isNotEmpty())
-
-    /**
-     * The streams the configured add-ons offer for [movie], resolved through the user's TMDB key for
-     * the IMDb id. Empty when there's no key, no add-ons, no IMDb match, or nothing came back. Each
-     * add-on is queried independently so one failing doesn't sink the rest.
-     */
-    suspend fun addonStreams(movie: Movie): List<StremioStream> {
-        val addons = settings.stremioAddons.value
-        if (addons.isEmpty()) return emptyList()
-        val imdb = graph.catalogRepository.imdbIdFor(movie) ?: return emptyList()
-        return withContext(Dispatchers.IO) {
-            addons.flatMap { addon ->
-                runCatching { graph.stremioClient.streams(addon.manifestUrl, addon.name, "movie", imdb) }
-                    .getOrDefault(emptyList())
-            }
-        }
-    }
 
     /** Switch the Movies/Shows provider filter; category selections reset since they differ per source. */
     fun selectVodSource(sourceId: Long?) {

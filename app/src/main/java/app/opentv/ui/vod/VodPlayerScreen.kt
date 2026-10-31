@@ -122,6 +122,16 @@ fun VodPlayerScreen(
     streamUrl: String,
     title: String,
     userAgent: String,
+    referer: String = "",
+    cookie: String = "",
+    origin: String = "",
+    streamMimeType: String = "",
+    subtitleUrl: String = "",
+    subtitleLabel: String = "",
+    subtitleLanguage: String = "",
+    subtitleMimeType: String = "",
+    headers: Map<String, String> = emptyMap(),
+    fallbackContext: UnifiedFallbackContext? = null,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -137,12 +147,16 @@ fun VodPlayerScreen(
     // http/file URLs of ordinary VOD.
     val controller = remember {
         PlayerController(
-            context, scope, graph.streamingHttpClient, subtitlesEnabled = false,
+            context,
+            scope,
+            graph.streamingHttpClient,
+            subtitlesEnabled = subtitleUrl.isNotBlank(),
             smbDataSourceFactory = app.opentv.player.SmbDataSource.Factory(graph.settings),
             // Lets an `optvrec://<id>` recording play while it's still being written.
             growingDataSourceFactory =
                 app.opentv.player.GrowingRecordingDataSource.Factory(context.applicationContext),
             liveRecording = growingRec,
+            autoRetryOnFailure = fallbackContext?.alternateItems.isNullOrEmpty(),
         )
     }
     // Skip forward/back within the recorded portion. For a growing recording ExoPlayer won't report
@@ -155,6 +169,10 @@ fun VodPlayerScreen(
     }
     val state by controller.state.collectAsState()
     val tracks by controller.tracks.collectAsState()
+    val alternateSources = remember(mediaKey, fallbackContext) {
+        fallbackContext?.alternateItems?.toMutableList() ?: mutableListOf()
+    }
+    var recoveringFallback by remember(mediaKey) { mutableStateOf(false) }
 
     var paused by remember { mutableStateOf(false) }
     var vodPanel by remember { mutableStateOf(VodPanel.NONE) }
@@ -212,16 +230,29 @@ fun VodPlayerScreen(
         }
     }
 
-    LaunchedEffect(mediaKey) {
+    LaunchedEffect(mediaKey, streamUrl, referer, cookie, origin, streamMimeType, subtitleUrl, headers) {
         val resumeFrom = graph.playbackPositions.get(settings.activeProfileId.value, mediaKey)
             ?.takeIf { !it.isFinished }?.positionMillis ?: 0L
         // Downloaded? Play the file — works with no signal, and spares the provider connection.
-        val url = graph.downloadRepository.localFile(mediaKey) ?: streamUrl
+        // Do not force the remote provider's MIME type onto a local downloaded file.
+        val localUrl = graph.downloadRepository.localFile(mediaKey)
+        val url = localUrl ?: streamUrl
         controller.play(
             PlayerController.Request(
                 url = url,
                 title = title,
                 userAgent = userAgent,
+                requestHeaders = buildMap {
+                    putAll(headers)
+                    if (referer.isNotBlank()) put("Referer", referer)
+                    if (cookie.isNotBlank()) put("Cookie", cookie)
+                    if (origin.isNotBlank()) put("Origin", origin)
+                },
+                streamMimeType = streamMimeType.takeIf { localUrl == null && it.isNotBlank() },
+                subtitleUrl = subtitleUrl.takeIf { it.isNotBlank() },
+                subtitleLabel = subtitleLabel.takeIf { it.isNotBlank() },
+                subtitleLanguage = subtitleLanguage.takeIf { it.isNotBlank() },
+                subtitleMimeType = subtitleMimeType.takeIf { it.isNotBlank() },
                 startPositionMillis = resumeFrom,
                 isLive = false,
             ),
@@ -230,6 +261,52 @@ fun VodPlayerScreen(
         while (isActive) {
             delay(15_000)
             savePosition()
+        }
+    }
+
+    // Switch only after a real Media3 player failure, not during ordinary buffering.
+    // Each provider is tried at most once for this playback, without downloading stale signed URLs.
+    LaunchedEffect(state) {
+        if (state !is PlayerController.State.Error ||
+            fallbackContext == null || alternateSources.isEmpty() || recoveringFallback
+        ) return@LaunchedEffect
+        recoveringFallback = true
+        try {
+            while (alternateSources.isNotEmpty()) {
+                val alternative = alternateSources.removeAt(0)
+                val resolved = UnifiedPlaybackResolver.resolve(
+                    graph.providerRepository,
+                    alternative,
+                    fallbackContext.mediaType,
+                    fallbackContext.season,
+                    fallbackContext.episodeNumber,
+                ) ?: continue
+                val stream = resolved.stream
+                android.util.Log.i(
+                    "UnifiedFallback",
+                    "player error: switching to provider=${alternative.providerId} type=${fallbackContext.mediaType}",
+                )
+                val currentPosition = controller.player.currentPosition.coerceAtLeast(0L)
+                controller.play(
+                    PlayerController.Request(
+                        url = stream.url,
+                        title = title,
+                        userAgent = stream.headers["User-Agent"] ?: "OpenTV/0.1 (Android)",
+                        requestHeaders = stream.headers,
+                        streamMimeType = stream.mimeType,
+                        subtitleUrl = resolved.subtitle?.url,
+                        subtitleLabel = resolved.subtitle?.label,
+                        subtitleLanguage = resolved.subtitle?.language,
+                        subtitleMimeType = resolved.subtitle?.mimeType,
+                        startPositionMillis = currentPosition,
+                        isLive = false,
+                    ),
+                    debounce = false,
+                )
+                break
+            }
+        } finally {
+            recoveringFallback = false
         }
     }
 

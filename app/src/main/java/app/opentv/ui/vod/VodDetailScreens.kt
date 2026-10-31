@@ -15,7 +15,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -24,14 +23,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarOutline
@@ -46,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,13 +79,11 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
-import app.opentv.data.model.StremioStream
 import app.opentv.data.parser.displayTitle
 import app.opentv.data.parser.sourceTag
 import app.opentv.data.parser.episodeDisplayTitle
 import app.opentv.ui.VodViewModel
 import coil.compose.AsyncImage
-import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
 
 /**
@@ -97,7 +96,6 @@ import kotlinx.coroutines.delay
 fun MovieDetailScreen(
     movieId: Long,
     onPlay: (Movie) -> Unit,
-    onPlayUrl: (key: String, url: String, title: String) -> Unit,
     onOpenMovie: (Movie) -> Unit,
     onOpenPerson: (String) -> Unit,
     onBack: () -> Unit = {},
@@ -107,11 +105,6 @@ fun MovieDetailScreen(
     var moreLike by remember(movieId) { mutableStateOf<List<Movie>>(emptyList()) }
     var resumeExists by remember(movieId) { mutableStateOf(false) }
     val playFocus = remember { FocusRequester() }
-    val hasAddons by viewModel.hasAddons.collectAsState()
-    val scope = rememberCoroutineScope()
-    // null = the add-on picker is closed; a (possibly empty) list = show it. Separate flag for the spinner.
-    var addonStreams by remember(movieId) { mutableStateOf<List<StremioStream>?>(null) }
-    var addonLoading by remember(movieId) { mutableStateOf(false) }
 
     LaunchedEffect(movieId) {
         val loaded = viewModel.movieDetail(movieId)
@@ -154,19 +147,6 @@ fun MovieDetailScreen(
                         systemId = 0, createdMillis = 0,
                     )
                 })
-                // Only when the user has add-ons set up — queries them for this film's streams.
-                if (hasAddons) {
-                    DetailButton(
-                        icon = Icons.Filled.Extension,
-                        label = stringResource(R.string.vod_addon_sources),
-                    ) {
-                        addonLoading = true
-                        scope.launch {
-                            addonStreams = viewModel.addonStreams(m)
-                            addonLoading = false
-                        }
-                    }
-                }
             }
         }
         item(key = "info") {
@@ -186,97 +166,6 @@ fun MovieDetailScreen(
         }
     }
 
-    if (addonLoading || addonStreams != null) {
-        AddonStreamPicker(
-            loading = addonLoading,
-            streams = addonStreams.orEmpty(),
-            onPick = { stream ->
-                addonStreams = null
-                onPlayUrl("movie:${m.id}", stream.url, m.displayTitle)
-            },
-            onDismiss = { addonStreams = null; addonLoading = false },
-        )
-    }
-}
-
-/**
- * The picker shown when the user taps "Add-on sources" on a film: a spinner while streams are
- * fetched, then the list each add-on returned (already filtered to directly-playable URLs). Picking
- * one plays it through the normal VOD player.
- */
-@Composable
-private fun AddonStreamPicker(
-    loading: Boolean,
-    streams: List<StremioStream>,
-    onPick: (StremioStream) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .widthIn(max = 560.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(20.dp),
-        ) {
-            Text(
-                stringResource(R.string.vod_addon_pick_title),
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Spacer(Modifier.height(12.dp))
-            when {
-                loading -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.height(22.dp).width(22.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.vod_addon_loading), style = MaterialTheme.typography.bodyMedium)
-                }
-                streams.isEmpty() -> Text(
-                    stringResource(R.string.vod_addon_none),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                else -> LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.height(360.dp),
-                ) {
-                    items(streams, key = { it.url }) { stream -> AddonStreamRow(stream, onPick) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AddonStreamRow(stream: StremioStream, onPick: (StremioStream) -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .onFocusChanged { focused = it.isFocused }
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (focused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-            .clickable { onPick(stream) }
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                stream.title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                stream.addonName,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-        }
-    }
 }
 
 /**
@@ -329,6 +218,14 @@ fun SeriesDetailScreen(
             .mapValues { (_, eps) -> eps.sortedBy { it.episodeNumber } }
             .toSortedMap()
     }
+    var selectedSeason by rememberSaveable(seasons.keys) {
+        mutableStateOf(seasons.keys.firstOrNull() ?: 1)
+    }
+    LaunchedEffect(seasons.keys) {
+        if (selectedSeason !in seasons && seasons.isNotEmpty()) {
+            selectedSeason = seasons.keys.first()
+        }
+    }
 
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "header") {
@@ -361,6 +258,77 @@ fun SeriesDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                 )
+            }
+        } else if (seasons.size > 1) {
+            item(key = "season-selector") {
+                Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        items(seasons.keys.toList(), key = { it }) { sNum ->
+                            val isSelected = sNum == selectedSeason
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                    )
+                                    .clickable { selectedSeason = sNum }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            ) {
+                                Text(
+                                    stringResource(R.string.vod_season, sNum),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    val currentSeasonEpisodes = seasons[selectedSeason].orEmpty()
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            SectionHeader("${stringResource(R.string.vod_season, selectedSeason)} (${currentSeasonEpisodes.size} Bölüm)")
+                        }
+                        TextButton(
+                            onClick = {
+                                app.opentv.core.NotificationPermission.askIfNeeded(context)
+                                downloadScope.launch {
+                                    val repo = graph.downloadRepository
+                                    var first: DownloadRepository.Start? = null
+                                    for (ep in currentSeasonEpisodes) {
+                                        val d = episodeDownload(s, ep)
+                                        if (downloadDao.byKey(d.mediaKey) != null) continue
+                                        val r = repo.enqueue(d)
+                                        if (first == null) first = r
+                                        if (r is DownloadRepository.Start.NoSpace) break
+                                    }
+                                    first?.let {
+                                        Toast.makeText(context, startMessage(context, s.displayTitle, it), Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.padding(end = 4.dp),
+                        ) {
+                            Icon(Icons.Filled.Download, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.dl_season))
+                        }
+                    }
+                }
+            }
+            val currentSeasonEpisodes = seasons[selectedSeason].orEmpty()
+            items(currentSeasonEpisodes, key = { it.id }) { ep ->
+                EpisodeRow(ep, onPlayEpisode, seriesTitle = s.name, trailing = {
+                    DownloadControl(mediaKey = "ep:${ep.id}", buildDownload = { episodeDownload(s, ep) }, compact = true)
+                })
             }
         } else {
             seasons.forEach { (season, eps) ->
@@ -428,7 +396,7 @@ fun SeriesDetailScreen(
  * beside an intentional-looking placeholder card, never an empty rectangle.
  */
 @Composable
-private fun DetailBackdrop(
+internal fun DetailBackdrop(
     title: String,
     backdropUrl: String?,
     posterUrl: String?,
@@ -558,7 +526,7 @@ private fun HeroPosterCard(posterUrl: String?, title: String) {
  * Column, so a long cast list scrolls cleanly to the edge on a d-pad instead of stopping short.
  */
 @Composable
-private fun DetailInfo(
+internal fun DetailInfo(
     plot: String?,
     cast: String?,
     director: String?,
@@ -679,7 +647,7 @@ private fun PersonChip(name: String, onClick: () -> Unit) {
 
 /** A focusable pill button for the hero — Watch/Resume and the favourite toggle. */
 @Composable
-private fun DetailButton(
+internal fun DetailButton(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
@@ -734,7 +702,7 @@ private fun PhoneDetailHeader(
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(240.dp)
+                .height(230.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
@@ -745,10 +713,14 @@ private fun PhoneDetailHeader(
             )
             Box(
                 Modifier.matchParentSize().background(
-                    Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.15f), 1f to Color.Black.copy(alpha = 0.9f)),
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.5f),
+                        0.4f to Color.Transparent,
+                        0.85f to MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                        1f to MaterialTheme.colorScheme.background,
+                    ),
                 ),
             )
-            // Phones have no remote Back key in reach — give the page its own way out.
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
@@ -756,26 +728,55 @@ private fun PhoneDetailHeader(
                     .statusBarsPadding()
                     .padding(8.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color.Black.copy(alpha = 0.45f)),
+                    .background(Color.Black.copy(alpha = 0.5f)),
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
             }
-            Column(
-                Modifier.align(Alignment.BottomStart).statusBarsPadding().padding(16.dp),
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                Modifier
+                    .width(96.dp)
+                    .height(144.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(10.dp)),
             ) {
+                AsyncImage(
+                    model = posterUrl ?: backdropUrl,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (meta.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(meta, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        meta,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
+
         androidx.compose.foundation.layout.FlowRow(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -795,39 +796,55 @@ private fun EpisodeRow(
 ) {
     val shownTitle = remember(ep.title, seriesTitle) { episodeDisplayTitle(ep.title, seriesTitle) }
     var focused by remember { mutableStateOf(false) }
+    val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 3.dp)
+            .padding(horizontal = if (isPhone) 16.dp else 24.dp, vertical = 4.dp)
             .onFocusChanged { focused = it.isFocused }
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(
                 if (focused) MaterialTheme.colorScheme.primaryContainer
+                else if (isPhone) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                 else MaterialTheme.colorScheme.surface,
             )
             .then(
-                if (focused) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                if (focused) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
                 else Modifier,
             )
             .clickable {
                 onPlay("ep:${ep.id}", ep.streamUrl, "S${ep.season}E${ep.episodeNumber} · $shownTitle")
             }
-            .padding(14.dp),
+            .padding(if (isPhone) 12.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            "S${ep.season}E${ep.episodeNumber}",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.width(72.dp),
-        )
-        Text(
-            shownTitle,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        Box(
+            Modifier
+                .size(if (isPhone) 40.dp else 48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                "S${ep.season}E${ep.episodeNumber}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                shownTitle,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         trailing()
     }
 }
@@ -840,7 +857,7 @@ private fun episodeDownload(series: Series, ep: Episode) = Download(
 )
 
 @Composable
-private fun LoadingDetail() {
+internal fun LoadingDetail() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator()

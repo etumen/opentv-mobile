@@ -20,7 +20,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -77,10 +82,15 @@ import app.opentv.R
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
 import app.opentv.data.model.Source
+import app.opentv.data.provider.dizipal.DiziPalProvider
+import app.opentv.data.provider.ProviderItem
+import app.opentv.data.provider.ProviderCatalogSection
+import app.opentv.data.provider.ProviderMediaType
 import app.opentv.data.parser.displayTitle
 import app.opentv.data.parser.sourceTag
 import app.opentv.ui.VodViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 
 /**
  * Movies: a modern, row-based home — Continue Watching, Recommended, Recently added and a row per
@@ -91,11 +101,14 @@ import coil.compose.AsyncImage
 @Composable
 fun MoviesScreen(
     onOpenMovie: (Movie) -> Unit,
+    onOpenCloudMovie: (ProviderItem) -> Unit,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
     onOpenSearch: () -> Unit,
     hasSources: Boolean,
     isSyncing: Boolean,
     viewModel: VodViewModel = viewModel(),
+    cloudViewModel: CloudVodViewModel = viewModel(),
+    unifiedViewModel: UnifiedCatalogViewModel = viewModel(),
 ) {
     val categories by viewModel.movieCategories.collectAsState()
     // Films only here; episodes belong on the Series tab.
@@ -108,12 +121,32 @@ fun MoviesScreen(
     val vodLoading by viewModel.vodLoading.collectAsState()
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedVodSource.collectAsState()
+    val unified by unifiedViewModel.movies.collectAsState()
+    val selectedCloudSectionId = unified.categoryId
+    val cloudSectionItems = unified.items
+    val cloudSectionNextPage = if (unified.hasMore) unified.batches + 1 else null
+    val cloudLoading = unified.loading
+    val cloudSectionLoading = unified.loading
+    val cloudSectionLoadingMore = unified.loadingMore
+    val cloudShelves = remember(unified.items, unified.hasMore, unified.batches, unified.loadingMore) {
+        if (unified.items.isEmpty()) emptyList() else listOf(
+            CloudMovieShelf(
+                providerId = "unified",
+                providerName = "OpenTV",
+                section = ProviderCatalogSection("unified", "Tüm Filmler", ProviderMediaType.MOVIE),
+                items = unified.items,
+                nextPage = if (unified.hasMore) unified.batches + 1 else null,
+                loadingMore = unified.loadingMore,
+            ),
+        )
+    }
 
     // Pull the movie library the first time this tab is opened, not at login; refresh the computed
     // home rows (recommended, by-genre) on open too — cheap, and covers a library already on disk.
     LaunchedEffect(Unit) {
         if (hasSources) viewModel.ensureVodLoaded()
         viewModel.loadHomeFeeds()
+        unifiedViewModel.ensureLoaded(ProviderMediaType.MOVIE)
     }
 
     // null = the curated home rows; a category id = that category's full grid.
@@ -122,10 +155,22 @@ fun MoviesScreen(
 
     val hasMovies by viewModel.hasMovies.collectAsState()
     val hasContent = resume.isNotEmpty() || recommended.isNotEmpty() ||
-        recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
+        recentlyAdded.isNotEmpty() || genreRows.isNotEmpty() || cloudShelves.isNotEmpty()
+
+    val phone = isPhone()
 
     Column(Modifier.fillMaxSize()) {
         SearchAffordance(onOpenSearch)
+        if (unified.categories.isNotEmpty()) {
+            UnifiedGenreBrowseControls(
+                categories = unified.categories,
+                selectedId = selectedCloudSectionId,
+                onSelect = { id ->
+                    browseCategory = null
+                    unifiedViewModel.selectCategory(ProviderMediaType.MOVIE, id)
+                },
+            )
+        }
         if (sources.size > 1) {
             ProviderChips(
                 sources = sources,
@@ -134,23 +179,34 @@ fun MoviesScreen(
                 onSelectSource = { id -> browseCategory = null; viewModel.selectVodSource(id) },
             )
         }
-        CategoryChips(
-            // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
-            entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
-            selected = browseCategory,
-            onSelectHome = { browseCategory = null },
-            onSelectCategory = { id -> browseCategory = id; viewModel.selectMovieCategory(id) },
-            loadCounts = viewModel::movieCategoryCounts,
-        )
+        if (categories.isNotEmpty()) {
+            CategoryChips(
+                // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
+                entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
+                selected = browseCategory,
+                onSelectHome = { browseCategory = null },
+                onSelectCategory = { id -> browseCategory = id; viewModel.selectMovieCategory(id) },
+                loadCounts = viewModel::movieCategoryCounts,
+            )
+        }
         // Weighted so the shelves fill the space under the fixed search + chips header, exactly and
         // unambiguously — the same reason Live TV weights its guide grid.
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
+                selectedCloudSectionId != null -> CloudMovieCategoryGrid(
+                    items = cloudSectionItems,
+                    hasNextPage = cloudSectionNextPage != null,
+                    loading = cloudSectionLoading,
+                    loadingMore = cloudSectionLoadingMore,
+                    onOpenMovie = onOpenCloudMovie,
+                    onLoadMore = { unifiedViewModel.loadMore(ProviderMediaType.MOVIE) },
+                )
                 browseCategory != null -> MovieCategoryGrid(categoryMovies, viewModel, onOpenMovie)
                 !hasContent -> when {
                     // Not a confirmed-empty library (still answering, or rows exist and the
                     // shelves are building): show progress, never "no films".
-                    vodLoading || isSyncing || hasMovies != false -> LoadingVod(stringResource(R.string.vod_loading_movies))
+                    cloudLoading || vodLoading || isSyncing || hasMovies != false ->
+                        LoadingVod(stringResource(R.string.vod_loading_movies))
                     hasSources -> EmptyVod(stringResource(R.string.vod_no_movies), stringResource(R.string.vod_no_movies_provider))
                     else -> EmptyVod(stringResource(R.string.vod_no_movies), stringResource(R.string.vod_no_movies_add))
                 }
@@ -159,6 +215,33 @@ fun MoviesScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
+                    if (phone) {
+                        val heroMovie = recommended.firstOrNull() ?: recentlyAdded.firstOrNull()
+                        val heroCloud = if (heroMovie == null) cloudShelves.firstOrNull()?.items?.firstOrNull() else null
+                        if (heroMovie != null) {
+                            item(key = "movie_hero") {
+                                MobileFeaturedHero(
+                                    title = heroMovie.displayTitle,
+                                    backdropUrl = heroMovie.backdropUrl,
+                                    posterUrl = heroMovie.posterUrl,
+                                    subtitle = heroMovie.year?.toString(),
+                                    rating = heroMovie.rating,
+                                    onWatch = { onOpenMovie(heroMovie) },
+                                )
+                            }
+                        } else if (heroCloud != null) {
+                            item(key = "cloud_movie_hero") {
+                                MobileFeaturedHero(
+                                    title = heroCloud.title,
+                                    backdropUrl = heroCloud.backdropUrl,
+                                    posterUrl = heroCloud.posterUrl,
+                                    subtitle = heroCloud.year?.toString(),
+                                    rating = heroCloud.rating,
+                                    onWatch = { onOpenCloudMovie(heroCloud) },
+                                )
+                            }
+                        }
+                    }
                     if (resume.isNotEmpty()) item(key = "cw") { ContinueWatchingRow(resume, onResume) }
                     if (recommended.isNotEmpty()) item(key = "rec") {
                         MoviePosterRow(stringResource(R.string.vod_recommended), recommended, onOpenMovie)
@@ -168,6 +251,16 @@ fun MoviesScreen(
                     }
                     items(genreRows, key = { "g:${it.genre}" }) { group ->
                         MoviePosterRow(group.genre, group.items, onOpenMovie)
+                    }
+                    items(
+                        cloudShelves,
+                        key = { "cloud:${it.providerId}:${it.section.id}" },
+                    ) { shelf ->
+                        CloudMoviePosterRow(
+                            shelf = shelf,
+                            onOpenMovie = onOpenCloudMovie,
+                            onLoadMore = { unifiedViewModel.loadMore(ProviderMediaType.MOVIE) },
+                        )
                     }
                 }
             }
@@ -184,11 +277,14 @@ fun MoviesScreen(
 @Composable
 fun SeriesScreen(
     onOpenSeries: (Series) -> Unit,
+    onOpenCloudSeries: (ProviderItem) -> Unit,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
     onOpenSearch: () -> Unit,
     hasSources: Boolean,
     isSyncing: Boolean,
     viewModel: VodViewModel = viewModel(),
+    cloudViewModel: CloudSeriesViewModel = viewModel(),
+    unifiedViewModel: UnifiedCatalogViewModel = viewModel(),
 ) {
     val categories by viewModel.seriesCategories.collectAsState()
     // Episodes only here; films belong on the Films tab.
@@ -200,20 +296,65 @@ fun SeriesScreen(
     val vodLoading by viewModel.vodLoading.collectAsState()
     val sources by viewModel.sources.collectAsState()
     val selectedSource by viewModel.selectedVodSource.collectAsState()
+    val unified by unifiedViewModel.series.collectAsState()
+    val selectedCloudSectionId = unified.categoryId
+    val cloudSectionItems = unified.items
+    val cloudSectionNextPage = if (unified.hasMore) unified.batches + 1 else null
+    val cloudLoading = unified.loading
+    val cloudSectionLoading = unified.loading
+    val cloudSectionLoadingMore = unified.loadingMore
+    val cloudShelves = remember(unified.items, unified.hasMore, unified.batches, unified.loadingMore) {
+        if (unified.items.isEmpty()) emptyList() else listOf(
+            CloudSeriesShelf(
+                providerId = "unified",
+                providerName = "OpenTV",
+                section = ProviderCatalogSection("unified", "Tüm Diziler", ProviderMediaType.SERIES),
+                items = unified.items,
+                nextPage = if (unified.hasMore) unified.batches + 1 else null,
+                loadingMore = unified.loadingMore,
+            ),
+        )
+    }
+
+    var diziPalVerified by remember {
+        mutableStateOf(false)
+    }
+    val needsDiziPalVerification =
+        !diziPalVerified && unified.errors["dizipal"]?.contains("challenge", ignoreCase = true) == true
 
     LaunchedEffect(Unit) {
         if (hasSources) viewModel.ensureVodLoaded()
         viewModel.loadHomeFeeds()
     }
 
+    LaunchedEffect(Unit) {
+        unifiedViewModel.ensureLoaded(ProviderMediaType.SERIES)
+    }
+
     // Saveable: opening a title and coming back must land in the same category, not the shelves.
     var browseCategory by rememberSaveable { mutableStateOf<String?>(null) }
 
     val hasSeries by viewModel.hasSeries.collectAsState()
-    val hasContent = resume.isNotEmpty() || recentlyAdded.isNotEmpty() || genreRows.isNotEmpty()
+    val hasContent = resume.isNotEmpty() || recentlyAdded.isNotEmpty() ||
+        genreRows.isNotEmpty() || cloudShelves.isNotEmpty()
+
+    val phone = isPhone()
 
     Column(Modifier.fillMaxSize()) {
+        if (diziPalVerified) {
+            DiziPalSessionAnchor()
+        }
         SearchAffordance(onOpenSearch)
+        if (unified.categories.isNotEmpty()) {
+            UnifiedGenreBrowseControls(
+                categories = unified.categories,
+                selectedId = selectedCloudSectionId,
+                onSelect = { id ->
+                    browseCategory = null
+                    unifiedViewModel.selectCategory(ProviderMediaType.SERIES, id)
+                },
+            )
+        }
         if (sources.size > 1) {
             ProviderChips(
                 sources = sources,
@@ -222,19 +363,30 @@ fun SeriesScreen(
                 onSelectSource = { id -> browseCategory = null; viewModel.selectVodSource(id) },
             )
         }
-        CategoryChips(
-            // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
-            entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
-            selected = browseCategory,
-            onSelectHome = { browseCategory = null },
-            onSelectCategory = { id -> browseCategory = id; viewModel.selectSeriesCategory(id) },
-            loadCounts = viewModel::seriesCategoryCounts,
-        )
+        if (categories.isNotEmpty()) {
+            CategoryChips(
+                // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
+                entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
+                selected = browseCategory,
+                onSelectHome = { browseCategory = null },
+                onSelectCategory = { id -> browseCategory = id; viewModel.selectSeriesCategory(id) },
+                loadCounts = viewModel::seriesCategoryCounts,
+            )
+        }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
+                selectedCloudSectionId != null -> CloudSeriesCategoryGrid(
+                    items = cloudSectionItems,
+                    hasNextPage = cloudSectionNextPage != null,
+                    loading = cloudSectionLoading,
+                    loadingMore = cloudSectionLoadingMore,
+                    onOpenSeries = onOpenCloudSeries,
+                    onLoadMore = { unifiedViewModel.loadMore(ProviderMediaType.SERIES) },
+                )
                 browseCategory != null -> SeriesCategoryGrid(categorySeries, onOpenSeries)
                 !hasContent -> when {
-                    vodLoading || isSyncing || hasSeries != false -> LoadingVod(stringResource(R.string.vod_loading_shows))
+                    cloudLoading || vodLoading || isSyncing || hasSeries != false ->
+                        LoadingVod(stringResource(R.string.vod_loading_shows))
                     hasSources -> EmptyVod(stringResource(R.string.vod_no_shows), stringResource(R.string.vod_no_shows_provider))
                     else -> EmptyVod(stringResource(R.string.vod_no_shows), stringResource(R.string.vod_no_shows_add))
                 }
@@ -243,6 +395,33 @@ fun SeriesScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
+                    if (phone) {
+                        val heroSeries = recentlyAdded.firstOrNull()
+                        val heroCloud = if (heroSeries == null) cloudShelves.firstOrNull()?.items?.firstOrNull() else null
+                        if (heroSeries != null) {
+                            item(key = "series_hero") {
+                                MobileFeaturedHero(
+                                    title = heroSeries.displayTitle,
+                                    backdropUrl = heroSeries.backdropUrl,
+                                    posterUrl = heroSeries.posterUrl,
+                                    subtitle = heroSeries.year?.toString(),
+                                    rating = heroSeries.rating,
+                                    onWatch = { onOpenSeries(heroSeries) },
+                                )
+                            }
+                        } else if (heroCloud != null) {
+                            item(key = "cloud_series_hero") {
+                                MobileFeaturedHero(
+                                    title = heroCloud.title,
+                                    backdropUrl = heroCloud.backdropUrl,
+                                    posterUrl = heroCloud.posterUrl,
+                                    subtitle = heroCloud.year?.toString(),
+                                    rating = heroCloud.rating,
+                                    onWatch = { onOpenCloudSeries(heroCloud) },
+                                )
+                            }
+                        }
+                    }
                     if (resume.isNotEmpty()) item(key = "cw") { ContinueWatchingRow(resume, onResume) }
                     if (recentlyAdded.isNotEmpty()) item(key = "recent") {
                         SeriesPosterRow(stringResource(R.string.vod_recently_added), recentlyAdded, onOpenSeries)
@@ -250,8 +429,83 @@ fun SeriesScreen(
                     items(genreRows, key = { "g:${it.genre}" }) { group ->
                         SeriesPosterRow(group.genre, group.items, onOpenSeries)
                     }
+                    items(
+                        cloudShelves,
+                        key = { "cloud-series:${it.providerId}:${it.section.id}" },
+                    ) { shelf ->
+                        CloudSeriesPosterRow(
+                            shelf = shelf,
+                            onOpenSeries = onOpenCloudSeries,
+                            onLoadMore = { unifiedViewModel.loadMore(ProviderMediaType.SERIES) },
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    if (needsDiziPalVerification) {
+        DiziPalChallengeDialog(
+            onVerified = {
+                diziPalVerified = true
+                unifiedViewModel.selectCategory(ProviderMediaType.SERIES, unified.categoryId)
+            },
+        )
+    }
+}
+
+@Composable
+fun DramaScreen(
+    onOpenCloudSeries: (ProviderItem) -> Unit,
+    onOpenSearch: () -> Unit,
+    cloudViewModel: CloudSeriesViewModel = viewModel(),
+) {
+    val items by cloudViewModel.dramaItems.collectAsState()
+    val nextPage by cloudViewModel.dramaNextPage.collectAsState()
+    val loading by cloudViewModel.loadingDrama.collectAsState()
+    val loadingMore by cloudViewModel.loadingMoreDrama.collectAsState()
+
+    LaunchedEffect(Unit) {
+        cloudViewModel.loadDrama()
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        if (isPhone()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.nav_drama),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    stringResource(R.string.vod_drama_tag),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+        }
+        SearchAffordance(onOpenSearch)
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            CloudSeriesCategoryGrid(
+                items = items,
+                hasNextPage = nextPage != null,
+                loading = loading,
+                loadingMore = loadingMore,
+                onOpenSeries = onOpenCloudSeries,
+                onLoadMore = cloudViewModel::loadMoreDrama,
+            )
         }
     }
 }
@@ -398,6 +652,21 @@ internal fun PosterCard(
     tagBadge: String? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val imageModel = remember(posterUrl, context) {
+        posterUrl?.let { url ->
+            if (url.contains("cdnhipter.xyz", ignoreCase = true)) {
+                ImageRequest.Builder(context)
+                    .data(url)
+                    .addHeader("User-Agent", DiziPalProvider.SITE_USER_AGENT)
+                    .addHeader("Referer", DiziPalProvider.FALLBACK_BASE_URL + "/")
+                    .addHeader("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+                    .build()
+            } else {
+                url
+            }
+        }
+    }
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, label = "posterScale")
     Column(
         modifier
@@ -413,24 +682,43 @@ internal fun PosterCard(
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .then(
-                    if (focused) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                    if (focused) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
                     else Modifier,
                 ),
         ) {
             AsyncImage(
-                model = posterUrl,
+                model = imageModel,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
             rating?.takeIf { it > 0.0 }?.let {
-                Badge(
-                    text = "★ ${formatRating(it)}",
-                    modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
-                )
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(5.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.75f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFC107),
+                        modifier = Modifier.size(11.dp),
+                    )
+                    Text(
+                        formatRating(it),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                }
             }
             qualityBadge?.let {
                 Badge(
@@ -453,6 +741,7 @@ internal fun PosterCard(
         Text(
             title,
             style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
             color = if (focused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -776,6 +1065,32 @@ private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
  */
 @Composable
 private fun SearchAffordance(onOpenSearch: () -> Unit) {
+    if (isPhone()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onOpenSearch)
+                .padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                stringResource(R.string.vod_search_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
     var focused by remember { mutableStateOf(false) }
     Row(
         Modifier
@@ -799,6 +1114,124 @@ private fun SearchAffordance(onOpenSearch: () -> Unit) {
             style = MaterialTheme.typography.titleMedium,
             color = tint,
         )
+    }
+}
+
+@Composable
+private fun MobileFeaturedHero(
+    title: String,
+    backdropUrl: String?,
+    posterUrl: String?,
+    subtitle: String?,
+    rating: Double?,
+    onWatch: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(250.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onWatch),
+    ) {
+        AsyncImage(
+            model = backdropUrl ?: posterUrl,
+            contentDescription = title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.4f to Color.Black.copy(alpha = 0.35f),
+                        1f to Color.Black.copy(alpha = 0.92f),
+                    ),
+                ),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    stringResource(R.string.vod_featured_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+                rating?.takeIf { it > 0.0 }?.let {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Text(
+                            formatRating(it),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                    }
+                }
+                subtitle?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.75f),
+                    )
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable(onClick = onWatch)
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    stringResource(R.string.common_play),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+        }
     }
 }
 
@@ -831,7 +1264,7 @@ private fun LoadingVod(message: String) {
 
 /** Poster shelf card width; the grid uses an adaptive min size close to this. */
 private val POSTER_WIDTH = 140.dp
-private val PHONE_POSTER_WIDTH = 112.dp
+private val PHONE_POSTER_WIDTH = 118.dp
 
 @Composable
 private fun isPhone(): Boolean = LocalLayoutClass.current == LayoutClass.PHONE

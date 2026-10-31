@@ -34,6 +34,9 @@ import app.opentv.data.model.SeriesRule
 import app.opentv.data.model.Source
 import app.opentv.data.model.SourceKind
 import app.opentv.data.model.StreamKind
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class Converters {
     @TypeConverter fun sourceKindToString(value: SourceKind): String = value.name
@@ -55,6 +58,14 @@ class Converters {
 
     @TypeConverter fun stringToRecordingStatus(value: String): RecordingStatus =
         runCatching { RecordingStatus.valueOf(value) }.getOrDefault(RecordingStatus.FAILED)
+
+    @TypeConverter fun headersToString(value: Map<String, String>?): String? =
+        value?.takeIf { it.isNotEmpty() }?.let { Json.encodeToString(it) }
+
+    @TypeConverter fun stringToHeaders(value: String?): Map<String, String>? =
+        value?.takeIf { it.isNotBlank() }?.let {
+            runCatching { Json.decodeFromString<Map<String, String>>(it) }.getOrNull()
+        }
 }
 
 @Database(
@@ -77,7 +88,7 @@ class Converters {
         SeriesFts::class,
         Download::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -311,6 +322,14 @@ abstract class OpenTvDatabase : RoomDatabase() {
             }
         }
 
+        /** 13 → 14: persist per-channel M3U request headers and recording snapshots. */
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `channels` ADD COLUMN `requestHeaders` TEXT")
+                db.execSQL("ALTER TABLE `recordings` ADD COLUMN `requestHeaders` TEXT")
+            }
+        }
+
         fun build(context: Context): OpenTvDatabase =
             Room.databaseBuilder(context, OpenTvDatabase::class.java, "opentv.db")
                 // WAL keeps guide writes from blocking guide reads, so a background EPG
@@ -319,6 +338,7 @@ abstract class OpenTvDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
                     MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+                    MIGRATION_13_14,
                 )
                 /*
                  * Pre-1.0 policy: schema changes drop and rebuild the database. Everything

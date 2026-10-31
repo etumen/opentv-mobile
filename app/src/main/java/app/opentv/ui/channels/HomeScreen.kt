@@ -243,7 +243,7 @@ fun HomeScreen(
     var pendingLiveChannel by remember { mutableStateOf<Channel?>(null) }
     fun startLive(channel: Channel) {
         PlaybackQueue.items = rows.map {
-            PlaybackQueue.Item(it.primary.id, it.primary.shownName, it.primary.logoUrl, it.primary.number)
+            PlaybackQueue.Item(it.primary.id, it.primary.shownName, it.primary.logoUrl, it.number)
         }
         previewController.stop()
         onPlayChannel(channel)

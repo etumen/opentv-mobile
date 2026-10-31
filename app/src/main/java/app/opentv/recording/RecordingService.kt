@@ -115,6 +115,11 @@ class RecordingService : Service() {
 
                 val request = Request.Builder()
                     .url(recording.streamUrl)
+                    .apply {
+                        recording.requestHeaders.orEmpty().forEach { (name, value) ->
+                            header(name, value)
+                        }
+                    }
                     .header("User-Agent", recording.userAgent)
                     .build()
                 val call = graph.streamingHttpClient.newCall(request)
