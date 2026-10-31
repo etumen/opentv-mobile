@@ -81,7 +81,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.opentv.R
 import app.opentv.data.model.Movie
 import app.opentv.data.model.Series
-import app.opentv.data.model.Source
 import app.opentv.data.provider.dizipal.DiziPalProvider
 import app.opentv.data.provider.ProviderItem
 import app.opentv.data.provider.ProviderCatalogSection
@@ -119,8 +118,6 @@ fun MoviesScreen(
     val genreRows by viewModel.movieGenreRows.collectAsState()
     val categoryMovies by viewModel.movies.collectAsState()
     val vodLoading by viewModel.vodLoading.collectAsState()
-    val sources by viewModel.sources.collectAsState()
-    val selectedSource by viewModel.selectedVodSource.collectAsState()
     val unified by unifiedViewModel.movies.collectAsState()
     val selectedCloudSectionId = unified.categoryId
     val cloudSectionItems = unified.items
@@ -160,7 +157,6 @@ fun MoviesScreen(
     val phone = isPhone()
 
     Column(Modifier.fillMaxSize()) {
-        SearchAffordance(onOpenSearch)
         if (unified.categories.isNotEmpty()) {
             UnifiedGenreBrowseControls(
                 categories = unified.categories,
@@ -169,14 +165,6 @@ fun MoviesScreen(
                     browseCategory = null
                     unifiedViewModel.selectCategory(ProviderMediaType.MOVIE, id)
                 },
-            )
-        }
-        if (sources.size > 1) {
-            ProviderChips(
-                sources = sources,
-                selected = selectedSource,
-                onSelectAll = { browseCategory = null; viewModel.selectVodSource(null) },
-                onSelectSource = { id -> browseCategory = null; viewModel.selectVodSource(id) },
             )
         }
         if (categories.isNotEmpty()) {
@@ -294,8 +282,6 @@ fun SeriesScreen(
     val genreRows by viewModel.seriesGenreRows.collectAsState()
     val categorySeries by viewModel.series.collectAsState()
     val vodLoading by viewModel.vodLoading.collectAsState()
-    val sources by viewModel.sources.collectAsState()
-    val selectedSource by viewModel.selectedVodSource.collectAsState()
     val unified by unifiedViewModel.series.collectAsState()
     val selectedCloudSectionId = unified.categoryId
     val cloudSectionItems = unified.items
@@ -344,7 +330,6 @@ fun SeriesScreen(
         if (diziPalVerified) {
             DiziPalSessionAnchor()
         }
-        SearchAffordance(onOpenSearch)
         if (unified.categories.isNotEmpty()) {
             UnifiedGenreBrowseControls(
                 categories = unified.categories,
@@ -353,14 +338,6 @@ fun SeriesScreen(
                     browseCategory = null
                     unifiedViewModel.selectCategory(ProviderMediaType.SERIES, id)
                 },
-            )
-        }
-        if (sources.size > 1) {
-            ProviderChips(
-                sources = sources,
-                selected = selectedSource,
-                onSelectAll = { browseCategory = null; viewModel.selectVodSource(null) },
-                onSelectSource = { id -> browseCategory = null; viewModel.selectVodSource(id) },
             )
         }
         if (categories.isNotEmpty()) {
@@ -992,39 +969,6 @@ private fun PhoneCategoryPicker(
                     }
                 }
             }
-        }
-    }
-}
-
-/**
- * A provider filter above the category chips, shown only when more than one source is configured —
- * pick a provider to browse just its Movies/Shows categories, or "All sources" to fold them.
- */
-@Composable
-private fun ProviderChips(
-    sources: List<Source>,
-    selected: Long?,
-    onSelectAll: () -> Unit,
-    onSelectSource: (Long) -> Unit,
-) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        item(key = "plabel") {
-            Text(
-                stringResource(R.string.channels_manager_source_header),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 4.dp),
-            )
-        }
-        item(key = "pall") {
-            Chip(stringResource(R.string.channels_manager_all_sources), selected == null, onSelectAll)
-        }
-        items(sources, key = { it.id }) { source ->
-            Chip(source.name, selected == source.id) { onSelectSource(source.id) }
         }
     }
 }
