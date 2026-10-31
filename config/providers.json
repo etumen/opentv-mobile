@@ -1,5 +1,9 @@
 {
   "schema": 1,
-  "version": 1,
-  "providers": {}
+  "version": 2,
+  "providers": {
+    "ddizibox": {
+      "domain": "https://ddizibox.net"
+    }
+  }
 }
