@@ -28,6 +28,9 @@ DEFAULTS = {
     "dizimom": ("https://ddizimom.net", "/diziler"),
 }
 MAX_BYTES = 256 * 1024
+DIZIPAL_DOMAIN_SOURCE = (
+    "https://raw.githubusercontent.com/aytzey/cs-kraptor/master/doms/eklenti_domainleri.txt"
+)
 
 
 class LinkCount(HTMLParser):
@@ -86,6 +89,20 @@ def fetch(url: str, timeout: int = 12) -> tuple[int, bytes, str | None]:
         return error.code, error.read(4096), error.headers.get("Location")
 
 
+def discover_dizipal_domain() -> tuple[str | None, str]:
+    try:
+        code, body, _ = fetch(DIZIPAL_DOMAIN_SOURCE, timeout=12)
+        if code != 200:
+            return None, f"Dynamic domain source HTTP {code}"
+        for line in body.decode("utf-8", errors="replace").splitlines():
+            if line.startswith("|DiziPalOrijinal:"):
+                domain = validate_endpoint(line.split(":", 1)[1].strip())
+                return domain, "Domain from app's existing external discovery list"
+        return None, "DiziPalOrijinal entry absent from source list"
+    except Exception as error:
+        return None, ("Domain lookup: " + type(error).__name__ + ": " + str(error))[:180]
+
+
 def check_one(provider_id: str, domain: str | None, path: str | None) -> dict:
     record = {
         "provider": provider_id, "url": None, "status": "not_checked",
@@ -141,12 +158,18 @@ def main() -> int:
     for provider_id, (fallback, path) in DEFAULTS.items():
         override = config["providers"].get(provider_id, {})
         domain = override.get("domain", fallback)
+        discovery_note = ""
+        if provider_id == "dizipal" and not domain and not args.dry_run:
+            domain, discovery_note = discover_dizipal_domain()
         if domain:
             validate_endpoint(domain)
         if args.dry_run:
             records.append({"provider": provider_id, "status": "dry_run", "url": domain})
         else:
-            records.append(check_one(provider_id, domain, path or "/"))
+            row = check_one(provider_id, domain, path or "/")
+            if discovery_note:
+                row["note"] = discovery_note + "; " + row["note"]
+            records.append(row)
     result = {
         "checked_at_utc": datetime.now(timezone.utc).isoformat(),
         "config_version": config["version"],
