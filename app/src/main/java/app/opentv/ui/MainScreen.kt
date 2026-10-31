@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
@@ -64,6 +65,7 @@ import androidx.compose.ui.res.stringResource
 import app.opentv.core.AppSettings
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,6 +79,7 @@ import app.opentv.ui.channels.HomeScreen
 import app.opentv.ui.recordings.RecordingsScreen
 import app.opentv.ui.downloads.DownloadsScreen
 import androidx.compose.material.icons.filled.Download
+import app.opentv.ui.vod.DramaScreen
 import app.opentv.ui.vod.MoviesScreen
 import app.opentv.ui.vod.SeriesScreen
 
@@ -90,6 +93,7 @@ enum class Tab(val labelRes: Int, val icon: ImageVector) {
     LIVE(R.string.nav_live_tv, Icons.Filled.LiveTv),
     MOVIES(R.string.nav_movies, Icons.Filled.Movie),
     SHOWS(R.string.nav_shows, Icons.Filled.Tv),
+    DRAMA(R.string.nav_drama, Icons.Filled.AutoAwesome),
     RECORDINGS(R.string.nav_recordings, Icons.Filled.FiberManualRecord),
     DOWNLOADS(R.string.nav_downloads, Icons.Filled.Download),
 }
@@ -130,7 +134,10 @@ fun MainScreen(
         buildList {
             if (liveEnabled) add(Tab.LIVE)
             if (moviesEnabled) add(Tab.MOVIES)
-            if (seriesEnabled) add(Tab.SHOWS)
+            if (seriesEnabled) {
+                add(Tab.SHOWS)
+                add(Tab.DRAMA)
+            }
             add(Tab.RECORDINGS)
             add(Tab.DOWNLOADS)
         }
@@ -202,6 +209,10 @@ fun MainScreen(
                 hasSources = hasSources,
                 isSyncing = isSyncing,
             )
+            Tab.DRAMA -> DramaScreen(
+                onOpenCloudSeries = onOpenCloudSeries,
+                onOpenSearch = { onOpenSearch("series") },
+            )
             Tab.RECORDINGS -> RecordingsScreen(onPlay = onPlayRecording)
             // Saved files play through the VOD player under the same media key, so resume works.
             Tab.DOWNLOADS -> DownloadsScreen(onPlay = onResume)
@@ -220,7 +231,7 @@ fun MainScreen(
                     onOpenSearch(
                         when (tab) {
                             Tab.MOVIES -> "movies"
-                            Tab.SHOWS -> "series"
+                            Tab.SHOWS, Tab.DRAMA -> "series"
                             else -> "all"
                         },
                     )
@@ -231,21 +242,46 @@ fun MainScreen(
             )
             Box(Modifier.weight(1f).fillMaxWidth()) { content() }
             StatusBar()
-            NavigationBar {
+            androidx.compose.material3.HorizontalDivider(
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                thickness = 0.5.dp,
+            )
+            NavigationBar(
+                containerColor = Color(0xFF0C0E15),
+                tonalElevation = 0.dp,
+            ) {
                 visibleTabs.forEach { t ->
                     NavigationBarItem(
                         selected = tab == t,
                         onClick = { tab = t },
-                        icon = { Icon(t.icon, contentDescription = null) },
-                        // Five tabs on a narrow phone: the smaller label keeps "Grabaciones" whole.
+                        icon = {
+                            Icon(
+                                t.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        },
+                        colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                            unselectedIconColor = Color(0xFFC4CADA),
+                            unselectedTextColor = Color(0xFFC4CADA),
+                        ),
                         label = {
                             Text(
                                 stringResource(t.labelRes),
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    letterSpacing = (-0.2).sp,
+                                    lineHeight = 12.sp,
+                                ),
+                                fontWeight = if (tab == t) FontWeight.Bold else FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         },
+                        alwaysShowLabel = true,
                     )
                 }
             }
@@ -284,7 +320,10 @@ private fun PhoneTopBar(
     activeProfileName: String,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(

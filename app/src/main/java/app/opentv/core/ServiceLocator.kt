@@ -14,11 +14,18 @@ import app.opentv.data.metadata.ImdbSuggestionMetadataSource
 import app.opentv.data.metadata.MetadataRepository
 import app.opentv.data.metadata.SharedPreferencesMetadataCache
 import app.opentv.data.provider.ProviderRegistry
+import app.opentv.data.provider.ProviderRuntimeRules
+import app.opentv.data.provider.RemoteListingAdapter
 import app.opentv.data.provider.ProviderRepository
 import app.opentv.data.provider.ddizibox.DiziBoxProvider
+import app.opentv.data.provider.dizimom.DiziMomProvider
 import app.opentv.data.provider.dizipal.DiziPalProvider
+import app.opentv.data.provider.dramadizilerim.DramaDizilerimProvider
 import app.opentv.data.provider.filmmakinesi.FilmMakinesiProvider
 import app.opentv.data.provider.fullhd.FullHdFilmizleseneProvider
+import app.opentv.data.provider.hdfilmcehennemi.HdFilmCehennemiProvider
+import app.opentv.data.provider.jetfilmizle.JetFilmizleProvider
+import app.opentv.data.provider.sinemacx.SinemaCxProvider
 import app.opentv.data.remote.StalkerApi
 import app.opentv.data.remote.XtreamApi
 import app.opentv.data.repo.CatalogRepository
@@ -55,15 +62,48 @@ object ServiceLocator {
 
         val database: OpenTvDatabase by lazy { OpenTvDatabase.build(context) }
 
+        val remoteProviderConfig: ProviderRemoteConfigManager by lazy {
+            ProviderRemoteConfigManager(appContext)
+        }
+
         val httpClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
-                // Generous: catalogue endpoints on a busy panel can take a long time to
-                // produce 40,000 rows, and timing out mid-list is worse than waiting.
                 .readTimeout(60, TimeUnit.SECONDS)
                 .callTimeout(5, TimeUnit.MINUTES)
                 .retryOnConnectionFailure(true)
                 .followRedirects(true)
+                .build()
+        }
+
+        /** Only film/series provider requests can be remapped. Live TV and NAS are untouched. */
+        val providerHttpClient: OkHttpClient by lazy {
+            remoteProviderConfig
+            httpClient.newBuilder()
+                .addInterceptor { chain ->
+                    val original = chain.request()
+                    val mapped = ProviderRuntimeRules.remapHost(original.url.host)
+                    if (mapped == null || mapped.equals(original.url.host, ignoreCase = true)) {
+                        chain.proceed(original)
+                    } else {
+                        val newUrl = original.url.newBuilder().scheme("https").host(mapped).port(443).build()
+                        val builder = original.newBuilder()
+                            .url(newUrl)
+                            // Never forward old-site credentials to a different host.
+                            .removeHeader("Cookie")
+                            .removeHeader("Authorization")
+                        listOf("Referer", "Origin").forEach { name ->
+                            val header = original.header(name)
+                            if (header != null) {
+                                val oldOrigin = original.url.scheme + "://" + original.url.host
+                                if (header.startsWith(oldOrigin)) {
+                                    builder.header(name, "https://" + mapped + header.removePrefix(oldOrigin))
+                                }
+                            }
+                        }
+                        chain.proceed(builder.build())
+                    }
+                }
                 .build()
         }
 
@@ -94,14 +134,21 @@ object ServiceLocator {
         val providerRegistry: ProviderRegistry by lazy {
             ProviderRegistry(
                 listOf(
-                    FullHdFilmizleseneProvider(httpClient),
-                    FilmMakinesiProvider(httpClient),
-                    DiziPalProvider(appContext, httpClient),
-                    DiziBoxProvider(httpClient),
+                    FullHdFilmizleseneProvider(providerHttpClient),
+                    FilmMakinesiProvider(providerHttpClient),
+                    HdFilmCehennemiProvider(providerHttpClient),
+                    SinemaCxProvider(providerHttpClient),
+                    JetFilmizleProvider(providerHttpClient),
+                    DiziPalProvider(appContext, providerHttpClient),
+                    DiziBoxProvider(providerHttpClient),
+                    DramaDizilerimProvider(providerHttpClient),
+                    DiziMomProvider(providerHttpClient),
                 ),
             )
         }
-        val providerRepository: ProviderRepository by lazy { ProviderRepository(providerRegistry) }
+        val providerRepository: ProviderRepository by lazy {
+            ProviderRepository(providerRegistry, RemoteListingAdapter(providerHttpClient))
+        }
         val unifiedCatalog: CatalogAggregator by lazy { CatalogAggregator(providerRepository) }
         val providerHealth: ProviderHealthTracker by lazy {
             ProviderHealthTracker(

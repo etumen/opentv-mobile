@@ -23,7 +23,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -44,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -215,6 +218,14 @@ fun SeriesDetailScreen(
             .mapValues { (_, eps) -> eps.sortedBy { it.episodeNumber } }
             .toSortedMap()
     }
+    var selectedSeason by rememberSaveable(seasons.keys) {
+        mutableStateOf(seasons.keys.firstOrNull() ?: 1)
+    }
+    LaunchedEffect(seasons.keys) {
+        if (selectedSeason !in seasons && seasons.isNotEmpty()) {
+            selectedSeason = seasons.keys.first()
+        }
+    }
 
     LazyColumn(Modifier.fillMaxSize()) {
         item(key = "header") {
@@ -247,6 +258,77 @@ fun SeriesDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                 )
+            }
+        } else if (seasons.size > 1) {
+            item(key = "season-selector") {
+                Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        items(seasons.keys.toList(), key = { it }) { sNum ->
+                            val isSelected = sNum == selectedSeason
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                    )
+                                    .clickable { selectedSeason = sNum }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            ) {
+                                Text(
+                                    stringResource(R.string.vod_season, sNum),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    val currentSeasonEpisodes = seasons[selectedSeason].orEmpty()
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            SectionHeader("${stringResource(R.string.vod_season, selectedSeason)} (${currentSeasonEpisodes.size} Bölüm)")
+                        }
+                        TextButton(
+                            onClick = {
+                                app.opentv.core.NotificationPermission.askIfNeeded(context)
+                                downloadScope.launch {
+                                    val repo = graph.downloadRepository
+                                    var first: DownloadRepository.Start? = null
+                                    for (ep in currentSeasonEpisodes) {
+                                        val d = episodeDownload(s, ep)
+                                        if (downloadDao.byKey(d.mediaKey) != null) continue
+                                        val r = repo.enqueue(d)
+                                        if (first == null) first = r
+                                        if (r is DownloadRepository.Start.NoSpace) break
+                                    }
+                                    first?.let {
+                                        Toast.makeText(context, startMessage(context, s.displayTitle, it), Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.padding(end = 4.dp),
+                        ) {
+                            Icon(Icons.Filled.Download, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.dl_season))
+                        }
+                    }
+                }
+            }
+            val currentSeasonEpisodes = seasons[selectedSeason].orEmpty()
+            items(currentSeasonEpisodes, key = { it.id }) { ep ->
+                EpisodeRow(ep, onPlayEpisode, seriesTitle = s.name, trailing = {
+                    DownloadControl(mediaKey = "ep:${ep.id}", buildDownload = { episodeDownload(s, ep) }, compact = true)
+                })
             }
         } else {
             seasons.forEach { (season, eps) ->
@@ -620,7 +702,7 @@ private fun PhoneDetailHeader(
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(240.dp)
+                .height(230.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             AsyncImage(
@@ -631,10 +713,14 @@ private fun PhoneDetailHeader(
             )
             Box(
                 Modifier.matchParentSize().background(
-                    Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.15f), 1f to Color.Black.copy(alpha = 0.9f)),
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.5f),
+                        0.4f to Color.Transparent,
+                        0.85f to MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                        1f to MaterialTheme.colorScheme.background,
+                    ),
                 ),
             )
-            // Phones have no remote Back key in reach — give the page its own way out.
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
@@ -642,26 +728,55 @@ private fun PhoneDetailHeader(
                     .statusBarsPadding()
                     .padding(8.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color.Black.copy(alpha = 0.45f)),
+                    .background(Color.Black.copy(alpha = 0.5f)),
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
             }
-            Column(
-                Modifier.align(Alignment.BottomStart).statusBarsPadding().padding(16.dp),
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                Modifier
+                    .width(96.dp)
+                    .height(144.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(10.dp)),
             ) {
+                AsyncImage(
+                    model = posterUrl ?: backdropUrl,
+                    contentDescription = title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (meta.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(meta, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        meta,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
+
         androidx.compose.foundation.layout.FlowRow(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -681,39 +796,55 @@ private fun EpisodeRow(
 ) {
     val shownTitle = remember(ep.title, seriesTitle) { episodeDisplayTitle(ep.title, seriesTitle) }
     var focused by remember { mutableStateOf(false) }
+    val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 3.dp)
+            .padding(horizontal = if (isPhone) 16.dp else 24.dp, vertical = 4.dp)
             .onFocusChanged { focused = it.isFocused }
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(
                 if (focused) MaterialTheme.colorScheme.primaryContainer
+                else if (isPhone) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                 else MaterialTheme.colorScheme.surface,
             )
             .then(
-                if (focused) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                if (focused) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
                 else Modifier,
             )
             .clickable {
                 onPlay("ep:${ep.id}", ep.streamUrl, "S${ep.season}E${ep.episodeNumber} · $shownTitle")
             }
-            .padding(14.dp),
+            .padding(if (isPhone) 12.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            "S${ep.season}E${ep.episodeNumber}",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.width(72.dp),
-        )
-        Text(
-            shownTitle,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        Box(
+            Modifier
+                .size(if (isPhone) 40.dp else 48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                "S${ep.season}E${ep.episodeNumber}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                shownTitle,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         trailing()
     }
 }

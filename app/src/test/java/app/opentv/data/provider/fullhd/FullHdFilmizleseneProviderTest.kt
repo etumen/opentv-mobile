@@ -43,6 +43,8 @@ class FullHdFilmizleseneProviderTest {
         val html = """
             <header>
               <nav>
+                <a href="/en-cok-izlenen-filmler">En Çok İzlenen Filmler</a>
+                <a href="/filmizle/imdb-puani-yuksek-filmler">IMDB Puanı</a>
                 <a href="/filmizle/aile-filmleri-izle-2/">Aile Filmleri</a>
                 <a href="/filmizle/aksiyon-filmler-izle-1/">Aksiyon Filmleri</a>
                 <a href="/filmizle/bilim-kurgu-filmleri-izle-1/">Bilim Kurgu Filmleri</a>
@@ -70,8 +72,10 @@ class FullHdFilmizleseneProviderTest {
             "Komedi Filmleri",
             "Korku Filmleri",
         )
-        assertThat(categories.map { it.second }).contains(
-            "/filmizle/korku-filmleri-izle-2/",
+        assertThat(categories.map { it.second }).containsAtLeast(
+            "/en-cok-izlenen-filmler",
+            "/filmizle/imdb-puani-yuksek-filmler",
+            "/filmizle/korku-filmleri-izle-2",
         )
         assertThat(categories.flatMap { it.toList() }).doesNotContain("The Matrix")
     }

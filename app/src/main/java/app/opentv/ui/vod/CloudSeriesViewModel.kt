@@ -106,6 +106,18 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
     private val _searchResults = MutableStateFlow<List<ProviderItem>>(emptyList())
     val searchResults: StateFlow<List<ProviderItem>> = _searchResults.asStateFlow()
 
+    private val _dramaItems = MutableStateFlow<List<ProviderItem>>(emptyList())
+    val dramaItems: StateFlow<List<ProviderItem>> = _dramaItems.asStateFlow()
+
+    private val _dramaNextPage = MutableStateFlow<Int?>(null)
+    val dramaNextPage: StateFlow<Int?> = _dramaNextPage.asStateFlow()
+
+    private val _loadingDrama = MutableStateFlow(false)
+    val loadingDrama: StateFlow<Boolean> = _loadingDrama.asStateFlow()
+
+    private val _loadingMoreDrama = MutableStateFlow(false)
+    val loadingMoreDrama: StateFlow<Boolean> = _loadingMoreDrama.asStateFlow()
+
     private var loadedProviderId: String? = null
     private var searchJob: Job? = null
 
@@ -312,6 +324,74 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun loadDrama(force: Boolean = false) {
+        if (_loadingDrama.value || (!force && _dramaItems.value.isNotEmpty())) return
+
+        viewModelScope.launch {
+            _loadingDrama.value = true
+            _lastError.value = null
+            try {
+                when (
+                    val result = repository.catalog(
+                        DRAMA_PROVIDER_ID,
+                        ProviderCatalogRequest(
+                            mediaType = ProviderMediaType.SERIES,
+                            sectionId = DRAMA_SECTION_ID,
+                            page = 1,
+                        ),
+                    )
+                ) {
+                    is ProviderResult.Success -> {
+                        _dramaItems.value = result.value.items
+                        _dramaNextPage.value = result.value.nextPage
+                    }
+                    is ProviderResult.Failure -> {
+                        _lastError.value = result.error
+                        _dramaItems.value = emptyList()
+                        _dramaNextPage.value = null
+                    }
+                }
+            } finally {
+                _loadingDrama.value = false
+            }
+        }
+    }
+
+    fun loadMoreDrama() {
+        val nextPage = _dramaNextPage.value ?: return
+        if (_loadingMoreDrama.value || _loadingDrama.value) return
+
+        viewModelScope.launch {
+            _loadingMoreDrama.value = true
+            try {
+                when (
+                    val result = repository.catalog(
+                        DRAMA_PROVIDER_ID,
+                        ProviderCatalogRequest(
+                            mediaType = ProviderMediaType.SERIES,
+                            sectionId = DRAMA_SECTION_ID,
+                            page = nextPage,
+                        ),
+                    )
+                ) {
+                    is ProviderResult.Success -> {
+                        val current = _dramaItems.value
+                        val merged = (current + result.value.items).distinctBy { it.id }
+                        _dramaItems.value = merged
+                        _dramaNextPage.value =
+                            if (merged.size > current.size) result.value.nextPage else null
+                    }
+                    is ProviderResult.Failure -> {
+                        _lastError.value = result.error
+                        _dramaNextPage.value = null
+                    }
+                }
+            } finally {
+                _loadingMoreDrama.value = false
+            }
+        }
+    }
+
     fun setSearchQuery(query: String) {
         searchJob?.cancel()
         val trimmed = query.trim()
@@ -328,9 +408,9 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
                     mediaType = ProviderMediaType.SERIES,
                 ),
             )
-            _searchResults.value = result.values.values
-                .flatten()
-                .distinctBy { it.providerId + ":" + it.id }
+            val groups = UnifiedCatalogRules.groups(result.values.values.flatten())
+            UnifiedCatalogAlternatives.remember(groups)
+            _searchResults.value = groups.map { it.primary }
             result.failures.values.firstOrNull()?.let { _lastError.value = it }
         }
     }
@@ -373,6 +453,28 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    suspend fun episodePlaybackWithFallback(
+        providerId: String,
+        seriesId: String,
+        episode: ProviderEpisode,
+    ): ProviderResult<CloudSeriesPlayback> {
+        val original = episodePlayback(providerId, seriesId, episode.id)
+        if (original is ProviderResult.Success && original.value.streams.isNotEmpty()) return original
+        val recovered = UnifiedPlaybackResolver.first(
+            repository,
+            UnifiedFallbackContext(
+                mediaType = ProviderMediaType.SERIES,
+                alternateItems = UnifiedCatalogAlternatives.alternatives(providerId, seriesId),
+                season = episode.season,
+                episodeNumber = episode.episodeNumber,
+            ),
+        )
+        if (recovered != null) return ProviderResult.Success(
+            CloudSeriesPlayback(listOf(recovered.stream), listOfNotNull(recovered.subtitle)),
+        )
+        return original
+    }
+
     private suspend fun refreshSections(provider: Provider): List<ProviderCatalogSection> {
         val fallback = sections(provider)
         val resolved = when (
@@ -402,5 +504,10 @@ class CloudSeriesViewModel(app: Application) : AndroidViewModel(app) {
         _shelves.value = _shelves.value.map {
             if (it.section.id == sectionId) it.copy(loadingMore = false) else it
         }
+    }
+
+    companion object {
+        private const val DRAMA_PROVIDER_ID = "dramadizilerim"
+        private const val DRAMA_SECTION_ID = "asian"
     }
 }

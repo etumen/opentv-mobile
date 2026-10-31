@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -28,14 +29,18 @@ import androidx.compose.ui.graphics.asImageBitmap
 import app.opentv.pairing.QrCodes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,8 +60,15 @@ import kotlinx.coroutines.launch
 fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val graph = remember(context) { ServiceLocator.get(context) }
+    val sporbEnabled by graph.settings.sporbEnabled.collectAsState()
+    val sporbKnown by graph.settings.sporbKnown.collectAsState()
     var updateLine by remember { mutableStateOf<String?>(null) }
     var checking by remember { mutableStateOf(false) }
+    var versionTapCount by remember { mutableStateOf(0) }
+    var showFeatureCode by remember { mutableStateOf(false) }
+    var featureCode by remember { mutableStateOf("") }
+    var featureBusy by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -69,7 +81,17 @@ fun AboutScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(20.dp))
 
         Section(stringResource(R.string.about_version)) {
-            Text("OpenTV Mobile ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "OpenTV Mobile ${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.clickable {
+                    versionTapCount += 1
+                    if (versionTapCount >= 5) {
+                        showFeatureCode = true
+                        versionTapCount = 0
+                    }
+                },
+            )
             Spacer(Modifier.height(12.dp))
             OutlinedButton(
                 enabled = !checking,
@@ -77,7 +99,6 @@ fun AboutScreen(onBack: () -> Unit) {
                     checking = true
                     updateLine = null
                     scope.launch {
-                        val graph = ServiceLocator.get(context)
                         val update = runCatching {
                             UpdateChecker(graph.httpClient, BuildConfig.VERSION_NAME).check()
                         }.getOrNull()
@@ -85,8 +106,6 @@ fun AboutScreen(onBack: () -> Unit) {
                             update != null -> context.getString(R.string.about_update_available, update.versionName)
                             else -> context.getString(R.string.about_up_to_date)
                         }
-                        // Raise the shared update prompt right here — UpdateGate overlays every
-                        // screen, so the install dialog appears over About immediately.
                         if (update != null) {
                             app.opentv.update.UpdateHub.state.value =
                                 app.opentv.update.UpdateUiState.Available(update)
@@ -95,10 +114,113 @@ fun AboutScreen(onBack: () -> Unit) {
                     }
                 },
             ) { Text(if (checking) stringResource(R.string.about_checking) else stringResource(R.string.about_check_updates)) }
-            // Below the button, not beside it: translated lines are long enough to squeeze it.
             updateLine?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            }
+
+            if (showFeatureCode || sporbKnown || sporbEnabled) {
+                Spacer(Modifier.height(14.dp))
+                if (sporbKnown || sporbEnabled) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(
+                                if (sporbEnabled) R.string.about_sporb_enabled
+                                else R.string.about_sporb_disabled,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Switch(
+                            checked = sporbEnabled,
+                            enabled = !featureBusy,
+                            onCheckedChange = { enabled ->
+                                if (enabled) {
+                                    // Turning back on always requires the feature code.
+                                    showFeatureCode = true
+                                } else {
+                                    featureBusy = true
+                                    scope.launch {
+                                        val disabled = runCatching {
+                                            graph.sourceRepository.disableSporbSource()
+                                        }.isSuccess
+                                        if (disabled) {
+                                            graph.settings.setSporbEnabled(false)
+                                            featureCode = ""
+                                            showFeatureCode = false
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                R.string.about_sporb_disable_failed,
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                        }
+                                        featureBusy = false
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+                if (!sporbEnabled && showFeatureCode) {
+                    OutlinedTextField(
+                        value = featureCode,
+                        onValueChange = { featureCode = it },
+                        singleLine = true,
+                        enabled = !featureBusy,
+                        label = { Text(stringResource(R.string.about_feature_code_label)) },
+                        modifier = Modifier.widthIn(max = 360.dp),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        enabled = featureCode.isNotBlank() && !featureBusy,
+                        onClick = {
+                            if (!featureCode.trim().equals("sporb", ignoreCase = true)) {
+                                Toast.makeText(
+                                    context,
+                                    R.string.about_feature_code_invalid,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                                return@OutlinedButton
+                            }
+                            featureBusy = true
+                            scope.launch {
+                                val activation = runCatching {
+                                    val ensured = graph.sourceRepository.ensureSporbSource()
+                                    graph.catalogRepository.syncLive(
+                                        ensured.source,
+                                        System.currentTimeMillis(),
+                                    )
+                                }
+                                if (activation.isSuccess) {
+                                    graph.settings.setSporbKnown()
+                                    graph.settings.setSporbEnabled(true)
+                                    featureCode = ""
+                                    showFeatureCode = false
+                                } else {
+                                    // If source enabling partially succeeded, keep the playlist
+                                    // hidden until a later, successful code activation.
+                                    runCatching { graph.sourceRepository.disableSporbSource() }
+                                }
+                                Toast.makeText(
+                                    context,
+                                    if (activation.isFailure) R.string.about_sporb_activation_failed
+                                    else if (activation.getOrNull() is app.opentv.data.repo.CatalogRepository.SyncResult.Success) {
+                                        R.string.about_sporb_enabled_synced
+                                    } else R.string.about_sporb_enabled_sync_pending,
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                featureBusy = false
+                            }
+                        },
+                    ) {
+                        Text(
+                            if (featureBusy) stringResource(R.string.onboarding_working)
+                            else stringResource(R.string.about_feature_code_activate),
+                        )
+                    }
+                }
             }
         }
 

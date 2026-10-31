@@ -45,6 +45,9 @@ interface SourceDao {
     @Query("SELECT * FROM sources WHERE id = :id")
     suspend fun byId(id: Long): Source?
 
+    @Query("SELECT * FROM sources WHERE kind = :kind AND url = :url LIMIT 1")
+    suspend fun byKindAndUrl(kind: app.opentv.data.model.SourceKind, url: String): Source?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(source: Source): Long
 
@@ -61,13 +64,14 @@ interface SourceDao {
 @Dao
 interface ChannelDao {
     /** Visible channels per category id — the counts shown in the phone category sheet. */
-    @Query("SELECT categoryId AS categoryId, COUNT(*) AS count FROM channels WHERE hidden = 0 AND categoryId IS NOT NULL GROUP BY categoryId")
+    @Query("SELECT categoryId AS categoryId, COUNT(*) AS count FROM channels WHERE hidden = 0 AND categoryId IS NOT NULL AND sourceId IN (SELECT id FROM sources WHERE enabled = 1) GROUP BY categoryId")
     fun observeCountsByCategory(): Flow<List<CategoryCount>>
 
     @Query(
         """
         SELECT * FROM channels
         WHERE hidden = 0
+          AND sourceId IN (SELECT id FROM sources WHERE enabled = 1)
           AND (:sourceId IS NULL OR sourceId = :sourceId)
           AND (:categoryId IS NULL OR categoryId = :categoryId)
         ORDER BY sortIndex, displayName
@@ -75,7 +79,7 @@ interface ChannelDao {
     )
     fun observe(sourceId: Long?, categoryId: String?): Flow<List<Channel>>
 
-    @Query("SELECT * FROM channels WHERE favourite = 1 AND hidden = 0 ORDER BY sortIndex, displayName")
+    @Query("SELECT * FROM channels WHERE favourite = 1 AND hidden = 0 AND sourceId IN (SELECT id FROM sources WHERE enabled = 1) ORDER BY sortIndex, displayName")
     fun observeFavourites(): Flow<List<Channel>>
 
     /**
@@ -88,6 +92,7 @@ interface ChannelDao {
         """
         SELECT * FROM channels
         WHERE hidden = 0 AND categoryId IN (:categoryIds)
+          AND sourceId IN (SELECT id FROM sources WHERE enabled = 1)
         ORDER BY sortIndex, displayName
         """
     )
@@ -146,6 +151,7 @@ interface ChannelDao {
         """
         SELECT * FROM channels
         WHERE hidden = 0
+          AND sourceId IN (SELECT id FROM sources WHERE enabled = 1)
           AND (displayName LIKE '%' || :query || '%' OR name LIKE '%' || :query || '%')
         ORDER BY favourite DESC, sortIndex, displayName
         LIMIT :limit
@@ -185,7 +191,7 @@ interface ChannelDao {
      * screen tell "the guide is still building from channels on disk" apart from "nothing loaded",
      * so a failed or empty sync surfaces an error instead of spinning forever.
      */
-    @Query("SELECT COUNT(*) FROM channels WHERE hidden = 0")
+    @Query("SELECT COUNT(*) FROM channels WHERE hidden = 0 AND sourceId IN (SELECT id FROM sources WHERE enabled = 1)")
     fun observeVisibleCount(): Flow<Int>
 
     @Query("UPDATE channels SET favourite = :favourite WHERE id = :id")
@@ -294,12 +300,12 @@ interface ChannelDao {
 
 @Dao
 interface CategoryDao {
-    @Query("SELECT * FROM categories WHERE kind = :kind ORDER BY sortIndex, name")
+    @Query("SELECT * FROM categories WHERE kind = :kind AND sourceId IN (SELECT id FROM sources WHERE enabled = 1) ORDER BY sortIndex, name")
     fun observe(kind: StreamKind): Flow<List<Category>>
 
     /** One-shot list of every category of a kind, ordered like [observe] — the web manager reads
      * the live categories once per request rather than subscribing to a Flow. */
-    @Query("SELECT * FROM categories WHERE kind = :kind ORDER BY sortIndex, name")
+    @Query("SELECT * FROM categories WHERE kind = :kind AND sourceId IN (SELECT id FROM sources WHERE enabled = 1) ORDER BY sortIndex, name")
     suspend fun allByKind(kind: StreamKind): List<Category>
 
     /** Minimal id+name rows for the re-normalise pass. */

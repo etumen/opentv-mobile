@@ -61,7 +61,8 @@ class FullHdFilmizleseneProvider(
         }
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
-    private val baseUrl: HttpUrl = MAIN_URL.toHttpUrl()
+    private val baseUrl: HttpUrl
+        get() = (app.opentv.data.provider.ProviderRuntimeRules.domain(id) ?: MAIN_URL).toHttpUrl()
 
     private data class Section(
         val title: String,
@@ -82,8 +83,8 @@ class FullHdFilmizleseneProvider(
     private val playbackCache = linkedMapOf<String, CachedPlayback>()
 
     private val fallbackSections = linkedMapOf(
-        "latest" to Section("En Çok İzlenen Filmler", "/en-cok-izlenen-filmler-izle-hd/"),
-        "imdb" to Section("IMDB Puanı Yüksek Filmler", "/filmizle/imdb-puani-yuksek-filmler-izle-1/"),
+        "latest" to Section("En Çok İzlenen Filmler", "/en-cok-izlenen-filmler"),
+        "imdb" to Section("IMDB Puanı Yüksek Filmler", "/filmizle/imdb-puani-yuksek-filmler"),
         "family" to Section("Aile Filmleri", "/filmizle/aile-filmleri-hdf-izle/"),
         "action" to Section("Aksiyon Filmleri", "/filmizle/aksiyon-filmleri-hdf-izle/"),
         "animation" to Section("Animasyon Filmleri", "/filmizle/animasyon-filmleri-fhd-izle/"),
@@ -271,12 +272,15 @@ class FullHdFilmizleseneProvider(
         val menuLinks = doc.select(
             "header a[href*='/filmizle/'], nav a[href*='/filmizle/'], " +
                 ".menu a[href*='/filmizle/'], .dropdown-menu a[href*='/filmizle/'], " +
-                ".sub-menu a[href*='/filmizle/']",
+                ".sub-menu a[href*='/filmizle/'], " +
+                "header a[href*='/en-cok-izlenen-filmler'], nav a[href*='/en-cok-izlenen-filmler'], " +
+                ".menu a[href*='/en-cok-izlenen-filmler'], .dropdown-menu a[href*='/en-cok-izlenen-filmler'], " +
+                ".sub-menu a[href*='/en-cok-izlenen-filmler']",
         )
         val candidates = if (menuLinks.size >= MIN_DISCOVERED_CATEGORIES) {
             menuLinks
         } else {
-            doc.select("a[href*='/filmizle/']")
+            doc.select("a[href*='/filmizle/'], a[href*='/en-cok-izlenen-filmler']")
         }
 
         return candidates.mapNotNull { link ->
@@ -291,11 +295,16 @@ class FullHdFilmizleseneProvider(
             if (!url.host.equals(baseUrl.host, ignoreCase = true)) return@mapNotNull null
 
             val path = url.encodedPath.trimEnd('/')
-            if (!path.startsWith("/filmizle/")) return@mapNotNull null
-            val slug = path.removePrefix("/filmizle/")
-            if (slug.isBlank() || slug.contains('/')) return@mapNotNull null
+            val isMovieCategory = path.startsWith("/filmizle/")
+            val isMostWatched = path == "/en-cok-izlenen-filmler"
+            if (!isMovieCategory && !isMostWatched) return@mapNotNull null
 
-            title to "$path/"
+            if (isMovieCategory) {
+                val slug = path.removePrefix("/filmizle/")
+                if (slug.isBlank() || slug.contains('/')) return@mapNotNull null
+            }
+
+            title to path
         }.distinctBy { (_, path) -> path.lowercase() }
     }
 
@@ -306,11 +315,17 @@ class FullHdFilmizleseneProvider(
 
         links.forEach { (title, path) ->
             val key = categoryKey(title)
-            val existing = merged.entries.firstOrNull { categoryKey(it.value.title) == key }
+            val knownId = when {
+                path.trimEnd('/') == "/en-cok-izlenen-filmler" -> "latest"
+                path.contains("/filmizle/imdb-puani-yuksek-filmler") -> "imdb"
+                else -> null
+            }
+            val existing = knownId?.let { id -> merged.entries.firstOrNull { it.key == id } }
+                ?: merged.entries.firstOrNull { categoryKey(it.value.title) == key }
             if (existing != null) {
                 merged[existing.key] = existing.value.copy(path = path)
             } else {
-                val slug = path.removePrefix("/filmizle/").trim('/')
+                val slug = path.removePrefix("/filmizle/").trim('/').ifBlank { "category" }
                 var id = "site:$slug"
                 var suffix = 2
                 while (id in merged) {

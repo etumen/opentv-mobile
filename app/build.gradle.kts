@@ -101,6 +101,12 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Keep Robolectric/Conscrypt native-library lookup locale-stable on Turkish Windows.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
+}
+
 dependencies {
     implementation(project(":opentv-core"))
 

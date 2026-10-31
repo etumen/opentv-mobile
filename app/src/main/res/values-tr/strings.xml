@@ -19,6 +19,7 @@
     <string name="nav_live_tv">Canlı TV</string>
     <string name="nav_movies">Filmler</string>
     <string name="nav_shows">Diziler</string>
+    <string name="nav_drama">Drama</string>
     <string name="nav_recordings">Kayıtlar</string>
     <string name="nav_search">Ara</string>
     <string name="nav_settings">Ayarlar</string>
@@ -304,6 +305,15 @@
     <string name="about_up_to_date">En son sürümü kullanıyorsunuz.</string>
     <string name="about_checking">Kontrol ediliyor…</string>
     <string name="about_check_updates">Güncellemeleri denetle</string>
+    <string name="about_sporb_enabled">SporB açık</string>
+    <string name="about_sporb_disabled">SporB kapalı</string>
+    <string name="about_sporb_activation_failed">SporB açılamadı. Lütfen tekrar deneyin.</string>
+    <string name="about_sporb_disable_failed">SporB kapatılamadı.</string>
+    <string name="about_feature_code_label">Özellik kodu</string>
+    <string name="about_feature_code_invalid">Geçersiz özellik kodu.</string>
+    <string name="about_sporb_enabled_synced">SporB etkinleştirildi ve kanal listesi senkronize edildi.</string>
+    <string name="about_sporb_enabled_sync_pending">SporB etkinleştirildi. Kanal senkronizasyonu otomatik olarak tekrar denenecek.</string>
+    <string name="about_feature_code_activate">Etkinleştir</string>
     <string name="about_what_is_title">Bu nedir</string>
     <string name="about_what_is_body">Android TV, Fire TV ve telefonlar için ücretsiz, açık kaynaklı bir IPTV oynatıcısı. Yalnızca bir oynatıcıdır — kanal sağlamaz; zaten ödeme yaptığınız hizmete bağlanırsınız. Girdiğiniz hiçbir bilgi, kendi sağlayıcınızla konuşmak dışında cihazınızdan çıkmaz.</string>
     <string name="about_built_open_title">Açık şekilde geliştirildi</string>
@@ -398,6 +408,11 @@
     <string name="vod_cast">Oyuncular</string>
     <string name="vod_director">Yönetmen</string>
     <string name="vod_season">%1$d. Sezon</string>
+    <string name="vod_episodes_count">%1$d Bölüm</string>
+    <string name="vod_play_first_episode">1. Bölümü Oynat</string>
+    <string name="vod_episode_number">%1$d. Sezon %2$d. Bölüm</string>
+    <string name="vod_featured_badge">ÖNE ÇIKAN</string>
+    <string name="vod_drama_tag">Asya &amp; Kore</string>
     <string name="vod_detail_loading">Yükleniyor…</string>
     <string name="vod_person_title">%1$s ile</string>
     <string name="vod_person_empty">Kitaplığınızda %1$s ile başka içerik yok.</string>
@@ -576,4 +591,6 @@
     <string name="upd_retry">Tekrar dene</string>
     <string name="upd_update">Güncelle</string>
     <string name="vod_remove_continue">İzlemeye devam et\'ten kaldır</string>
+    <string name="player_trying_alternative_stream">Alternatif yayın deneniyor…</string>
+    <string name="player_all_streams_unavailable">Yayın şu anda kullanılamıyor.</string>
 </resources>

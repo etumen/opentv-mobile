@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.opentv.R
+import app.opentv.BuildConfig
 import app.opentv.ui.LayoutClass
 import app.opentv.ui.LocalLayoutClass
 
@@ -63,6 +64,7 @@ import app.opentv.ui.LocalLayoutClass
 fun SettingsHubScreen(
     onOpenProviders: () -> Unit,
     onOpenCloudProviders: () -> Unit,
+    onOpenProviderDiagnostics: () -> Unit,
     onOpenGuide: () -> Unit,
     onOpenChannels: () -> Unit,
     onOpenWebManager: () -> Unit,
@@ -77,6 +79,12 @@ fun SettingsHubScreen(
     val entries = listOfNotNull(
         HubEntry(Icons.Filled.Dns, stringResource(R.string.settings_providers_title), stringResource(R.string.settings_providers_subtitle), onOpenProviders),
         HubEntry(Icons.Filled.Cloud, stringResource(R.string.settings_cloud_providers_title), stringResource(R.string.settings_cloud_providers_subtitle), onOpenCloudProviders),
+        if (BuildConfig.DEBUG) HubEntry(
+            Icons.Filled.Tune,
+            "Geliştirici · Provider Durumu",
+            "Canlı kontrol, katalog sayfalaması ve hata bilgileri",
+            onOpenProviderDiagnostics,
+        ) else null,
         HubEntry(Icons.Filled.LiveTv, stringResource(R.string.settings_guide_title), stringResource(R.string.settings_guide_subtitle), onOpenGuide),
         // On a phone the Live list already does this better (favourite star, long-press → Hide), and
         // hidden channels come back via the web manager; TV keeps the d-pad manager.

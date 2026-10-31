@@ -27,6 +27,7 @@
     <string name="nav_live_tv">Live TV</string>
     <string name="nav_movies">Movies</string>
     <string name="nav_shows">Shows</string>
+    <string name="nav_drama">Drama</string>
     <string name="nav_recordings">Recordings</string>
     <string name="nav_search">Search</string>
     <string name="nav_settings">Settings</string>
@@ -340,6 +341,15 @@
     <string name="about_up_to_date">You\'re on the latest version.</string>
     <string name="about_checking">Checking…</string>
     <string name="about_check_updates">Check for updates</string>
+    <string name="about_sporb_enabled">SporB is on</string>
+    <string name="about_sporb_disabled">SporB is off</string>
+    <string name="about_sporb_activation_failed">SporB could not be enabled. Please try again.</string>
+    <string name="about_sporb_disable_failed">SporB could not be disabled.</string>
+    <string name="about_feature_code_label">Feature code</string>
+    <string name="about_feature_code_invalid">Invalid feature code.</string>
+    <string name="about_sporb_enabled_synced">SporB enabled and channel list synced.</string>
+    <string name="about_sporb_enabled_sync_pending">SporB enabled. Channel sync will retry automatically.</string>
+    <string name="about_feature_code_activate">Activate</string>
     <string name="about_what_is_title">What it is</string>
     <string name="about_what_is_body">A free, open-source IPTV player for Android TV, Fire TV and phones. It\'s a player only — it doesn\'t supply channels; you connect the service you already pay for. Nothing you enter leaves your device except to talk to your own provider.</string>
     <string name="about_built_open_title">Built in the open</string>
@@ -451,6 +461,11 @@
     <string name="vod_cast">Cast</string>
     <string name="vod_director">Director</string>
     <string name="vod_season">Season %1$d</string>
+    <string name="vod_episodes_count">%1$d episodes</string>
+    <string name="vod_play_first_episode">Play Episode 1</string>
+    <string name="vod_episode_number">S%1$d · E%2$d</string>
+    <string name="vod_featured_badge">FEATURED</string>
+    <string name="vod_drama_tag">Asia &amp; Korea</string>
     <string name="vod_detail_loading">Loading…</string>
     <string name="vod_person_title">With %1$s</string>
     <string name="vod_person_empty">Nothing else with %1$s in your library.</string>
@@ -627,4 +642,6 @@
     <string name="upd_available_body">%1$s %2$s is available. You have %3$s.</string>
     <string name="settings_auto_rotate_title">Rotate with the phone</string>
     <string name="settings_auto_rotate_subtitle">Video always plays in landscape. On: menus and lists also turn with the phone (following the system rotation lock).</string>
+    <string name="player_trying_alternative_stream">Trying another stream…</string>
+    <string name="player_all_streams_unavailable">This channel is temporarily unavailable.</string>
 </resources>

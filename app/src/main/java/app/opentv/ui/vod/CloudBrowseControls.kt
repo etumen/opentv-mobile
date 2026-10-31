@@ -161,7 +161,7 @@ internal fun CloudProviderBrowseControls(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
-                    item(key = "home") {
+                    item(key = "__all_categories__") {
                         ListItem(
                             headlineContent = { Text(stringResource(R.string.cloud_home)) },
                             colors = ListItemDefaults.colors(
@@ -175,7 +175,7 @@ internal fun CloudProviderBrowseControls(
                             },
                         )
                     }
-                    items(shown, key = { it.id }) { section ->
+                    items(shown, key = { "section_${it.id}" }) { section ->
                         ListItem(
                             headlineContent = {
                                 Text(section.title, maxLines = 1, overflow = TextOverflow.Ellipsis)

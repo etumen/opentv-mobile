@@ -39,6 +39,7 @@ import app.opentv.R
 import app.opentv.data.model.LiveStreamFormat
 import app.opentv.data.model.Source
 import app.opentv.data.model.SourceKind
+import app.opentv.data.repo.SourceRepository
 import app.opentv.ui.SourcesViewModel
 
 /**
@@ -54,6 +55,10 @@ fun ProvidersScreen(
     viewModel: SourcesViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
+    // SporB is managed by the hidden code toggle; normal Remove would delete its cached channels.
+    val visibleSources = ui.sources.filterNot {
+        it.kind == SourceKind.M3U && it.url == SourceRepository.SPORB_URL
+    }
     var pendingRemove by remember { mutableStateOf<Source?>(null) }
 
     Column(
@@ -67,7 +72,7 @@ fun ProvidersScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        if (ui.sources.isEmpty()) {
+        if (visibleSources.isEmpty()) {
             Text(
                 stringResource(R.string.providers_empty),
                 style = MaterialTheme.typography.bodyLarge,
@@ -80,7 +85,7 @@ fun ProvidersScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.widthIn(max = 760.dp),
         ) {
-            items(ui.sources, key = { it.id }) { source ->
+            items(visibleSources, key = { it.id }) { source ->
                 ProviderRow(
                     source = source,
                     confirming = pendingRemove?.id == source.id,

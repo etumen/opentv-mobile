@@ -131,7 +131,20 @@ fun CloudMovieDetailScreen(
     LaunchedEffect(providerId, itemId) {
         when (val result = viewModel.details(providerId, itemId)) {
             is ProviderResult.Success -> details = result.value
-            is ProviderResult.Failure -> error = result.error.message
+            is ProviderResult.Failure -> {
+                error = result.error.message
+                for (alternate in UnifiedCatalogAlternatives.alternatives(providerId, itemId)) {
+                    when (val candidate = viewModel.details(alternate.providerId, alternate.id)) {
+                        is ProviderResult.Success -> {
+                            details = candidate.value
+                            error = null
+                            android.util.Log.i("UnifiedFallback", "movie detail provider=${alternate.providerId}")
+                            break
+                        }
+                        is ProviderResult.Failure -> Unit
+                    }
+                }
+            }
         }
     }
 
@@ -146,11 +159,9 @@ fun CloudMovieDetailScreen(
     }
 
     val item = current.item
-    val providerName = viewModel.providerName(providerId)
     val meta = buildList {
         item.year?.let { add(it.toString()) }
         item.rating?.takeIf { it > 0.0 }?.let { add("★ %.1f".format(it)) }
-        add(providerName)
     }.joinToString("  ·  ")
 
     LazyColumn(Modifier.fillMaxSize()) {

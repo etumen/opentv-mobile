@@ -203,7 +203,7 @@ private fun ChannelListRow(
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        row.primary.number?.let { num ->
+        row.number.takeIf { it > 0 }?.let { num ->
             Text(
                 "$num",
                 style = MaterialTheme.typography.labelMedium,
@@ -364,7 +364,7 @@ private fun GuideRow(
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            row.primary.number?.let { num ->
+            row.number.takeIf { it > 0 }?.let { num ->
                 Text(
                     "$num",
                     style = MaterialTheme.typography.labelMedium,

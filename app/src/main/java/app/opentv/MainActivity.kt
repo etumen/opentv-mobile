@@ -80,6 +80,7 @@ import app.opentv.ui.settings.ParentalControlsScreen
 import app.opentv.ui.settings.ProfilesScreen
 import app.opentv.ui.settings.ProvidersScreen
 import app.opentv.ui.settings.CloudProvidersScreen
+import app.opentv.ui.settings.ProviderDiagnosticsScreen
 import app.opentv.ui.settings.RecordingSettingsScreen
 import app.opentv.ui.settings.SyncScreen
 import app.opentv.ui.settings.SettingsHubScreen
@@ -206,6 +207,7 @@ object Routes {
     const val SETTINGS_HUB = "settings"
     const val PROVIDERS = "providers"
     const val CLOUD_PROVIDERS = "cloud-providers"
+    const val PROVIDER_DIAGNOSTICS = "provider-diagnostics"
     const val CHANNELS = "channels"
     const val WEB_MANAGER = "web-manager"
     const val PROFILES = "profiles"
@@ -249,6 +251,8 @@ object Routes {
         subtitleLabel: String = "",
         subtitleLanguage: String = "",
         subtitleMimeType: String = "",
+        headers: Map<String, String> = emptyMap(),
+        fallback: app.opentv.ui.vod.UnifiedFallbackContext? = null,
     ): String {
         val token = app.opentv.ui.vod.VodPlaybackHandoff.put(
             app.opentv.ui.vod.VodPlaybackHandoff.Request(
@@ -264,6 +268,8 @@ object Routes {
                 subtitleLabel = subtitleLabel,
                 subtitleLanguage = subtitleLanguage,
                 subtitleMimeType = subtitleMimeType,
+                headers = headers,
+                fallback = fallback,
             ),
         )
         return "vod/$token"
@@ -491,6 +497,7 @@ private fun OpenTvApp(isTelevision: Boolean) {
                 SettingsHubScreen(
                     onOpenProviders = { navController.navigate(Routes.PROVIDERS) },
                     onOpenCloudProviders = { navController.navigate(Routes.CLOUD_PROVIDERS) },
+                    onOpenProviderDiagnostics = { navController.navigate(Routes.PROVIDER_DIAGNOSTICS) },
                     onOpenGuide = { navController.navigate(Routes.EPG_SETTINGS) },
                     onOpenChannels = { navController.navigate(Routes.CHANNELS) },
                     onOpenWebManager = { navController.navigate(Routes.WEB_MANAGER) },
@@ -534,6 +541,11 @@ private fun OpenTvApp(isTelevision: Boolean) {
 
             composable(Routes.CLOUD_PROVIDERS) {
                 CloudProvidersScreen(onBack = { navController.popBackStack() })
+            }
+            if (BuildConfig.DEBUG) {
+                composable(Routes.PROVIDER_DIAGNOSTICS) {
+                    ProviderDiagnosticsScreen(onBack = { navController.popBackStack() })
+                }
             }
 
             composable(Routes.ABOUT) {
@@ -618,6 +630,12 @@ private fun OpenTvApp(isTelevision: Boolean) {
                                 subtitleLabel = subtitle?.label.orEmpty(),
                                 subtitleLanguage = subtitle?.language.orEmpty(),
                                 subtitleMimeType = subtitle?.mimeType.orEmpty(),
+                                headers = stream.headers,
+                                fallback = app.opentv.ui.vod.UnifiedFallbackContext(
+                                    app.opentv.data.provider.ProviderMediaType.MOVIE,
+                                    app.opentv.ui.vod.UnifiedCatalogAlternatives
+                                        .alternatives(providerId, itemId).filterNot { it.providerId == stream.providerId },
+                                ),
                             ),
                         )
                     },
@@ -652,6 +670,14 @@ private fun OpenTvApp(isTelevision: Boolean) {
                                 subtitleLabel = subtitle?.label.orEmpty(),
                                 subtitleLanguage = subtitle?.language.orEmpty(),
                                 subtitleMimeType = subtitle?.mimeType.orEmpty(),
+                                headers = stream.headers,
+                                fallback = app.opentv.ui.vod.UnifiedFallbackContext(
+                                    app.opentv.data.provider.ProviderMediaType.SERIES,
+                                    app.opentv.ui.vod.UnifiedCatalogAlternatives
+                                        .alternatives(providerId, itemId).filterNot { it.providerId == stream.providerId },
+                                    season = episode.season,
+                                    episodeNumber = episode.episodeNumber,
+                                ),
                             ),
                         )
                     },
@@ -691,6 +717,8 @@ private fun OpenTvApp(isTelevision: Boolean) {
                     subtitleLabel = request.subtitleLabel,
                     subtitleLanguage = request.subtitleLanguage,
                     subtitleMimeType = request.subtitleMimeType,
+                    headers = request.headers,
+                    fallbackContext = request.fallback,
                     onBack = { navController.popBackStack() },
                 )
             }
