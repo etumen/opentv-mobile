@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,7 +68,7 @@ import kotlinx.coroutines.launch
  * from the file; the bin deletes it (and cancels it if it's still downloading).
  */
 @Composable
-fun DownloadsScreen(onPlay: (mediaKey: String, url: String, title: String) -> Unit) {
+fun DownloadsScreen(onPlay: (mediaKey: String, url: String, title: String) -> Unit, onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
     val repo = remember { ServiceLocator.get(context).downloadRepository }
     val items by remember { repo.observe() }.collectAsState(initial = emptyList())
@@ -80,6 +82,25 @@ fun DownloadsScreen(onPlay: (mediaKey: String, url: String, title: String) -> Un
     val used = items.sumOf { if (it.state == DownloadRepository.State.DONE) it.totalBytes else it.bytesSoFar }
 
     Column(Modifier.fillMaxSize()) {
+        if (onBack != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.common_back),
+                    )
+                }
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    stringResource(R.string.nav_downloads),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),

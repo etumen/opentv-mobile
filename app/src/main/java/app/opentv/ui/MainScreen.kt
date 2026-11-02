@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Person
@@ -76,6 +77,7 @@ import app.opentv.data.model.Recording
 import app.opentv.data.model.Series
 import app.opentv.data.provider.ProviderItem
 import app.opentv.ui.channels.HomeScreen
+import app.opentv.ui.home.MobileHomeScreen
 import app.opentv.ui.recordings.RecordingsScreen
 import app.opentv.ui.downloads.DownloadsScreen
 import androidx.compose.material.icons.filled.Download
@@ -90,10 +92,11 @@ import app.opentv.ui.vod.SeriesScreen
  * rather than pushing it, so expanding the menu never reflows the guide underneath.
  */
 enum class Tab(val labelRes: Int, val icon: ImageVector) {
-    LIVE(R.string.nav_live_tv, Icons.Filled.LiveTv),
+    HOME(R.string.nav_home, Icons.Filled.Home),
     MOVIES(R.string.nav_movies, Icons.Filled.Movie),
     SHOWS(R.string.nav_shows, Icons.Filled.Tv),
     DRAMA(R.string.nav_drama, Icons.Filled.AutoAwesome),
+    LIVE(R.string.nav_live_tv, Icons.Filled.LiveTv),
     RECORDINGS(R.string.nav_recordings, Icons.Filled.FiberManualRecord),
     DOWNLOADS(R.string.nav_downloads, Icons.Filled.Download),
 }
@@ -121,6 +124,9 @@ fun MainScreen(
     onPlayRecording: (Recording) -> Unit,
     onPlayCatchup: (mediaKey: String, url: String, title: String, ua: String) -> Unit,
     activeProfileName: String,
+    onOpenRecordings: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {},
+    onPlayCloudItem: (ProviderItem, () -> Unit) -> Unit = { _, done -> done() },
 ) {
     // Content-type toggles: a switched-off type has its tab hidden here (and its sync skipped in
     // CatalogRepository). Recordings is never a content type, so it always stays — which also means
@@ -130,23 +136,29 @@ fun MainScreen(
     val liveEnabled by settings.liveEnabled.collectAsState()
     val moviesEnabled by settings.moviesEnabled.collectAsState()
     val seriesEnabled by settings.seriesEnabled.collectAsState()
-    val visibleTabs = remember(liveEnabled, moviesEnabled, seriesEnabled) {
-        buildList {
-            if (liveEnabled) add(Tab.LIVE)
-            if (moviesEnabled) add(Tab.MOVIES)
-            if (seriesEnabled) {
-                add(Tab.SHOWS)
-                add(Tab.DRAMA)
+    val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
+    val visibleTabs = remember(isPhone, liveEnabled, moviesEnabled, seriesEnabled) {
+        if (isPhone) {
+            listOf(Tab.HOME, Tab.MOVIES, Tab.SHOWS, Tab.DRAMA, Tab.LIVE)
+        } else {
+            buildList {
+                if (liveEnabled) add(Tab.LIVE)
+                if (moviesEnabled) add(Tab.MOVIES)
+                if (seriesEnabled) {
+                    add(Tab.SHOWS)
+                    add(Tab.DRAMA)
+                }
+                add(Tab.RECORDINGS)
+                add(Tab.DOWNLOADS)
             }
-            add(Tab.RECORDINGS)
-            add(Tab.DOWNLOADS)
         }
     }
-    // Without an IPTV source, Live TV has nothing useful to show. A native movie provider still
-    // makes the app usable, so provider-only installs start on Movies instead of an empty Live tab.
-    val homeTab =
+    val homeTab = if (isPhone) {
+        Tab.HOME
+    } else {
         if (!hasSources && Tab.MOVIES in visibleTabs) Tab.MOVIES
-        else visibleTabs.first()
+        else visibleTabs.firstOrNull() ?: Tab.LIVE
+    }
 
     // Saveable so it survives leaving for the player or a detail page: Back from an episode used
     // to land on Live TV because this state was rebuilt from scratch when the shell came back.
@@ -184,35 +196,81 @@ fun MainScreen(
 
     val content: @Composable () -> Unit = {
         when (tab) {
-            Tab.LIVE -> HomeScreen(
-                isTelevision = isTelevision,
+            Tab.HOME -> MobileHomeScreen(
                 hasSources = hasSources,
-                isSyncing = isSyncing,
-                onPlayChannel = onPlayChannel,
-                onAddSource = onAddSource,
-                onRefresh = onRefresh,
-                onPlayCatchup = onPlayCatchup,
-            )
-            Tab.MOVIES -> MoviesScreen(
+                onResume = onResume,
                 onOpenMovie = onOpenMovie,
                 onOpenCloudMovie = onOpenCloudMovie,
-                onResume = onResume,
-                onOpenSearch = { onOpenSearch("movies") },
-                hasSources = hasSources,
-                isSyncing = isSyncing,
-            )
-            Tab.SHOWS -> SeriesScreen(
                 onOpenSeries = onOpenSeries,
                 onOpenCloudSeries = onOpenCloudSeries,
-                onResume = onResume,
-                onOpenSearch = { onOpenSearch("series") },
-                hasSources = hasSources,
-                isSyncing = isSyncing,
+                onPlayCloudItem = onPlayCloudItem,
+                onSelectTab = { tab = it },
             )
-            Tab.DRAMA -> DramaScreen(
-                onOpenCloudSeries = onOpenCloudSeries,
-                onOpenSearch = { onOpenSearch("series") },
-            )
+            Tab.LIVE -> {
+                if (isPhone && !liveEnabled) {
+                    DisabledContentEmptyState(
+                        title = stringResource(R.string.nav_live_tv),
+                        description = stringResource(R.string.settings_content_note),
+                    )
+                } else {
+                    HomeScreen(
+                        isTelevision = isTelevision,
+                        hasSources = hasSources,
+                        isSyncing = isSyncing,
+                        onPlayChannel = onPlayChannel,
+                        onAddSource = onAddSource,
+                        onRefresh = onRefresh,
+                        onPlayCatchup = onPlayCatchup,
+                    )
+                }
+            }
+            Tab.MOVIES -> {
+                if (isPhone && !moviesEnabled) {
+                    DisabledContentEmptyState(
+                        title = stringResource(R.string.nav_movies),
+                        description = stringResource(R.string.settings_content_note),
+                    )
+                } else {
+                    MoviesScreen(
+                        onOpenMovie = onOpenMovie,
+                        onOpenCloudMovie = onOpenCloudMovie,
+                        onResume = onResume,
+                        onOpenSearch = { onOpenSearch("movies") },
+                        hasSources = hasSources,
+                        isSyncing = isSyncing,
+                    )
+                }
+            }
+            Tab.SHOWS -> {
+                if (isPhone && !seriesEnabled) {
+                    DisabledContentEmptyState(
+                        title = stringResource(R.string.nav_shows),
+                        description = stringResource(R.string.settings_content_note),
+                    )
+                } else {
+                    SeriesScreen(
+                        onOpenSeries = onOpenSeries,
+                        onOpenCloudSeries = onOpenCloudSeries,
+                        onResume = onResume,
+                        onOpenSearch = { onOpenSearch("series") },
+                        hasSources = hasSources,
+                        isSyncing = isSyncing,
+                    )
+                }
+            }
+            Tab.DRAMA -> {
+                if (isPhone && !seriesEnabled) {
+                    DisabledContentEmptyState(
+                        title = stringResource(R.string.nav_drama),
+                        description = stringResource(R.string.settings_content_note),
+                    )
+                } else {
+                    DramaScreen(
+                        onOpenCloudSeries = onOpenCloudSeries,
+                        onOpenSearch = { onOpenSearch("series") },
+                    )
+                }
+            }
             Tab.RECORDINGS -> RecordingsScreen(onPlay = onPlayRecording)
             // Saved files play through the VOD player under the same media key, so resume works.
             Tab.DOWNLOADS -> DownloadsScreen(onPlay = onResume)
@@ -226,7 +284,6 @@ fun MainScreen(
             PhoneTopBar(
                 isSyncing = isSyncing,
                 onRefresh = onRefresh,
-                // The top-bar search starts in the scope of the tab you're on.
                 onOpenSearch = {
                     onOpenSearch(
                         when (tab) {
@@ -236,6 +293,8 @@ fun MainScreen(
                         },
                     )
                 },
+                onOpenRecordings = onOpenRecordings,
+                onOpenDownloads = onOpenDownloads,
                 onOpenSettings = onOpenSettings,
                 onOpenProfiles = onOpenProfiles,
                 activeProfileName = activeProfileName,
@@ -247,7 +306,7 @@ fun MainScreen(
                 thickness = 0.5.dp,
             )
             NavigationBar(
-                containerColor = Color(0xFF0C0E15),
+                containerColor = Color(0xFF08080B),
                 tonalElevation = 0.dp,
             ) {
                 visibleTabs.forEach { t ->
@@ -262,11 +321,11 @@ fun MainScreen(
                             )
                         },
                         colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                            unselectedIconColor = Color(0xFFC4CADA),
-                            unselectedTextColor = Color(0xFFC4CADA),
+                            selectedIconColor = Color(0xFFE50914),
+                            selectedTextColor = Color(0xFFE50914),
+                            indicatorColor = Color(0xFFE50914).copy(alpha = 0.16f),
+                            unselectedIconColor = Color(0xFF8E92A2),
+                            unselectedTextColor = Color(0xFF8E92A2),
                         ),
                         label = {
                             Text(
@@ -318,34 +377,42 @@ private fun PhoneTopBar(
     onOpenSettings: () -> Unit,
     onOpenProfiles: () -> Unit,
     activeProfileName: String,
+    onOpenRecordings: () -> Unit = {},
+    onOpenDownloads: () -> Unit = {},
 ) {
     Row(
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            .padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
             painter = painterResource(R.drawable.ic_opentv_logo),
             contentDescription = null,
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(24.dp),
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(4.dp))
         Wordmark(Modifier.weight(1f))
         // Re-sync every provider: new channels, films and series, plus the guide. Spins while any
         // sync (manual or scheduled) runs, so a second tap can't stack another one.
-        IconButton(onClick = onRefresh, enabled = !isSyncing) {
+        IconButton(onClick = onRefresh, enabled = !isSyncing, modifier = Modifier.size(36.dp)) {
             if (isSyncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             else Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.phone_refresh))
         }
-        IconButton(onClick = onOpenSearch) {
+        IconButton(onClick = onOpenSearch, modifier = Modifier.size(36.dp)) {
             Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.nav_search))
         }
-        IconButton(onClick = onOpenProfiles) {
+        IconButton(onClick = onOpenRecordings, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Filled.FiberManualRecord, contentDescription = stringResource(R.string.nav_recordings), tint = MaterialTheme.colorScheme.primary)
+        }
+        IconButton(onClick = onOpenDownloads, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.nav_downloads))
+        }
+        IconButton(onClick = onOpenProfiles, modifier = Modifier.size(36.dp)) {
             Icon(Icons.Filled.Person, contentDescription = activeProfileName)
         }
-        IconButton(onClick = onOpenSettings) {
+        IconButton(onClick = onOpenSettings, modifier = Modifier.size(36.dp)) {
             Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.nav_settings))
         }
     }
@@ -441,7 +508,7 @@ private fun NavRail(
             )
             if (expanded) {
                 Spacer(Modifier.width(12.dp))
-                Wordmark()
+                Wordmark(isPhone = false)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -508,7 +575,7 @@ private fun RailItem(
  * — credit to the project it grew from, and plain about being the phone edition.
  */
 @Composable
-private fun Wordmark(modifier: Modifier = Modifier) {
+private fun Wordmark(modifier: Modifier = Modifier, isPhone: Boolean = true) {
     Column(modifier) {
         Text(
             "OpenTV",
@@ -517,13 +584,38 @@ private fun Wordmark(modifier: Modifier = Modifier) {
             fontWeight = FontWeight.ExtraBold,
             maxLines = 1,
         )
-        Text(
-            "MOBILE",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 3.sp,
-            maxLines = 1,
-            modifier = Modifier.padding(start = 2.dp),
-        )
+        if (isPhone) {
+            Text(
+                "MOBILE",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 3.sp,
+                maxLines = 1,
+                modifier = Modifier.padding(start = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DisabledContentEmptyState(title: String, description: String) {
+    Box(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
     }
 }

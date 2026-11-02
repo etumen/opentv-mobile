@@ -172,8 +172,15 @@ fun MoviesScreen(
                 // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
                 entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
                 selected = browseCategory,
-                onSelectHome = { browseCategory = null },
-                onSelectCategory = { id -> browseCategory = id; viewModel.selectMovieCategory(id) },
+                onSelectHome = {
+                    browseCategory = null
+                    if (selectedCloudSectionId != null) unifiedViewModel.selectCategory(ProviderMediaType.MOVIE, null)
+                },
+                onSelectCategory = { id ->
+                    browseCategory = id
+                    if (selectedCloudSectionId != null) unifiedViewModel.selectCategory(ProviderMediaType.MOVIE, null)
+                    viewModel.selectMovieCategory(id)
+                },
                 loadCounts = viewModel::movieCategoryCounts,
             )
         }
@@ -345,8 +352,15 @@ fun SeriesScreen(
                 // Providers decorate category names with superscripts ("⁴ᴷ ³⁸⁴⁰ᴾ"); fold them to plain text.
                 entries = categories.map { it.id to ChannelNameNormalizer.foldSuperscripts(it.name) },
                 selected = browseCategory,
-                onSelectHome = { browseCategory = null },
-                onSelectCategory = { id -> browseCategory = id; viewModel.selectSeriesCategory(id) },
+                onSelectHome = {
+                    browseCategory = null
+                    if (selectedCloudSectionId != null) unifiedViewModel.selectCategory(ProviderMediaType.SERIES, null)
+                },
+                onSelectCategory = { id ->
+                    browseCategory = id
+                    if (selectedCloudSectionId != null) unifiedViewModel.selectCategory(ProviderMediaType.SERIES, null)
+                    viewModel.selectSeriesCategory(id)
+                },
                 loadCounts = viewModel::seriesCategoryCounts,
             )
         }
@@ -759,6 +773,7 @@ private fun Badge(text: String, modifier: Modifier = Modifier, highlight: Boolea
 internal fun ContinueWatchingRow(
     items: List<VodViewModel.ResumeItem>,
     onResume: (mediaKey: String, url: String, title: String) -> Unit,
+    title: String = stringResource(R.string.vod_continue_watching),
 ) {
     val context = LocalContext.current
     val graph = remember { ServiceLocator.get(context) }
@@ -769,7 +784,7 @@ internal fun ContinueWatchingRow(
     val shown = remember(items, removed) { items.filterNot { it.mediaKey in removed } }
     if (shown.isEmpty()) return
     Column(Modifier.fillMaxWidth()) {
-        SectionHeader(stringResource(R.string.vod_continue_watching))
+        SectionHeader(title)
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),

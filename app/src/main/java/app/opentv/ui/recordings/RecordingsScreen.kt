@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Notifications
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -122,7 +124,7 @@ class RecordingsViewModel(app: Application) : AndroidViewModel(app) {
 }
 
 @Composable
-fun RecordingsScreen(onPlay: (Recording) -> Unit) {
+fun RecordingsScreen(onPlay: (Recording) -> Unit, onBack: (() -> Unit)? = null) {
     val viewModel: RecordingsViewModel = viewModel()
     val recordings by viewModel.recordings.collectAsState()
     val reminders by viewModel.reminders.collectAsState()
@@ -153,10 +155,29 @@ fun RecordingsScreen(onPlay: (Recording) -> Unit) {
 
     val phone = LocalLayoutClass.current == LayoutClass.PHONE
     Column(Modifier.fillMaxSize().padding(horizontal = if (phone) 12.dp else 28.dp, vertical = if (phone) 8.dp else 20.dp)) {
-        Text(
-            stringResource(R.string.rec_screen_title),
-            style = if (phone) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
-        )
+        if (onBack != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.common_back),
+                    )
+                }
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    stringResource(R.string.rec_screen_title),
+                    style = if (phone) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+                )
+            }
+        } else {
+            Text(
+                stringResource(R.string.rec_screen_title),
+                style = if (phone) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+            )
+        }
         Spacer(Modifier.height(4.dp))
         Text(
             stringResource(R.string.rec_screen_desc),
