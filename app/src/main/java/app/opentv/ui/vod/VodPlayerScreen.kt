@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import app.opentv.ui.LocalLayoutClass
+import app.opentv.ui.LayoutClass
 import app.opentv.ui.player.PlayerGestureLayer
 import app.opentv.ui.player.ImmersiveSystemBars
 import app.opentv.ui.player.PlayerChromeInsets
@@ -137,6 +138,9 @@ fun VodPlayerScreen(
     val context = LocalContext.current
     val view = LocalView.current
     val graph = remember { ServiceLocator.get(context) }
+    val isPhone = LocalLayoutClass.current == LayoutClass.PHONE
+    val isMobileSeries = isPhone && (mediaKey.startsWith("cloud-ep:") ||
+        fallbackContext?.mediaType == app.opentv.data.provider.ProviderMediaType.SERIES)
     val settings = remember { graph.settings }
     val scope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
     // A recording that's still being written plays through the tail-following source. It behaves a
@@ -150,14 +154,29 @@ fun VodPlayerScreen(
             context,
             scope,
             graph.streamingHttpClient,
-            subtitlesEnabled = subtitleUrl.isNotBlank(),
+            // Cloud series may carry Turkish subtitles inside HLS even without an external subtitle URL.
+            subtitlesEnabled = subtitleUrl.isNotBlank() || isMobileSeries,
             smbDataSourceFactory = app.opentv.player.SmbDataSource.Factory(graph.settings),
             // Lets an `optvrec://<id>` recording play while it's still being written.
             growingDataSourceFactory =
                 app.opentv.player.GrowingRecordingDataSource.Factory(context.applicationContext),
             liveRecording = growingRec,
             autoRetryOnFailure = fallbackContext?.alternateItems.isNullOrEmpty(),
-        )
+        ).also { playback ->
+            if (isPhone) {
+                // Prefer Turkish only when the stream actually exposes a Turkish audio track.
+                playback.player.trackSelectionParameters = playback.player.trackSelectionParameters
+                    .buildUpon().setPreferredAudioLanguage("tr").build()
+                if (isMobileSeries) {
+                    playback.player.trackSelectionParameters = playback.player.trackSelectionParameters
+                        .buildUpon()
+                        .setPreferredTextLanguage("tr")
+                        .setSelectUndeterminedTextLanguage(false)
+                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                        .build()
+                }
+            }
+        }
     }
     // Skip forward/back within the recorded portion. For a growing recording ExoPlayer won't report
     // the item as seekable (no fixed length), so we seek directly, clamped to what's on disk.
@@ -169,6 +188,55 @@ fun VodPlayerScreen(
     }
     val state by controller.state.collectAsState()
     val tracks by controller.tracks.collectAsState()
+    val selectedAudioLanguage = tracks.groups.asSequence()
+        .filter { it.type == C.TRACK_TYPE_AUDIO }
+        .flatMap { group ->
+            (0 until group.length).asSequence()
+                .filter { group.isTrackSelected(it) }
+                .map { group.getTrackFormat(it).language }
+        }
+        .firstOrNull { !it.isNullOrBlank() && it != "und" }
+    val audioButtonLabel = if (isPhone) {
+        val languageLabel = selectedAudioLanguage?.let {
+            java.util.Locale.forLanguageTag(it)
+                .getDisplayLanguage(java.util.Locale.forLanguageTag("tr")).ifBlank { it }
+        } ?: stringResource(R.string.player_audio_unknown)
+        stringResource(R.string.player_audio_current, languageLabel)
+    } else {
+        stringResource(R.string.player_audio)
+    }
+    val hasTurkishSubtitle = isMobileSeries && tracks.groups.any { group ->
+        group.type == C.TRACK_TYPE_TEXT && (0 until group.length).any { i ->
+            val format = group.getTrackFormat(i)
+            group.isTrackSupported(i) &&
+                captionLanguage(format.label, format.language)?.startsWith("tr", ignoreCase = true) == true
+        }
+    }
+    // Apply a safe initial selection; do not override the user's later manual choice.
+    var initialSubtitleChoiceMade by remember(mediaKey, streamUrl) { mutableStateOf(false) }
+    LaunchedEffect(tracks, isMobileSeries) {
+        if (isMobileSeries && !initialSubtitleChoiceMade) {
+            val textGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
+            if (textGroups.isNotEmpty()) {
+                val turkish = textGroups.firstNotNullOfOrNull { group ->
+                    (0 until group.length).firstOrNull { i ->
+                        val format = group.getTrackFormat(i)
+                        group.isTrackSupported(i) &&
+                            captionLanguage(format.label, format.language)
+                                ?.startsWith("tr", ignoreCase = true) == true
+                    }?.let { group to it }
+                }
+                initialSubtitleChoiceMade = true
+                if (turkish != null) controller.selectTrack(turkish.first, turkish.second)
+                else controller.disableText()
+            }
+        }
+    }
+    val subtitleButtonLabel = if (hasTurkishSubtitle) {
+        stringResource(R.string.player_subtitles_tr_available)
+    } else {
+        stringResource(R.string.player_subtitles)
+    }
     val alternateSources = remember(mediaKey, fallbackContext) {
         fallbackContext?.alternateItems?.toMutableList() ?: mutableListOf()
     }
@@ -251,7 +319,10 @@ fun VodPlayerScreen(
                 streamMimeType = streamMimeType.takeIf { localUrl == null && it.isNotBlank() },
                 subtitleUrl = subtitleUrl.takeIf { it.isNotBlank() },
                 subtitleLabel = subtitleLabel.takeIf { it.isNotBlank() },
-                subtitleLanguage = subtitleLanguage.takeIf { it.isNotBlank() },
+                subtitleLanguage = (
+                    if (isMobileSeries) captionLanguage(subtitleLabel, subtitleLanguage)
+                    else subtitleLanguage
+                )?.takeIf { it.isNotBlank() },
                 subtitleMimeType = subtitleMimeType.takeIf { it.isNotBlank() },
                 startPositionMillis = resumeFrom,
                 isLive = false,
@@ -557,12 +628,12 @@ fun VodPlayerScreen(
                         if (growingRec) seekRelative(15_000) else controller.seekForward(); interaction++
                     }
                     Spacer(Modifier.width(20.dp))
-                    VodChip(Icons.Filled.ClosedCaption, stringResource(R.string.player_subtitles)) {
+                    VodChip(Icons.Filled.ClosedCaption, subtitleButtonLabel) {
                         vodPanel = if (vodPanel == VodPanel.SUBTITLES) VodPanel.NONE else VodPanel.SUBTITLES
                         interaction++
                     }
                     Spacer(Modifier.width(10.dp))
-                    VodChip(Icons.Filled.Audiotrack, stringResource(R.string.player_audio)) {
+                    VodChip(Icons.Filled.Audiotrack, audioButtonLabel) {
                         vodPanel = if (vodPanel == VodPanel.AUDIO) VodPanel.NONE else VodPanel.AUDIO
                         interaction++
                     }
@@ -673,6 +744,19 @@ private fun TrackRow(label: String, selected: Boolean, onClick: () -> Unit, focu
     ) {
         Text(label, style = MaterialTheme.typography.titleMedium, color = fg, modifier = Modifier.weight(1f))
         if (selected) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.common_selected), tint = fg)
+    }
+}
+
+/** An explicit language label takes precedence over a conflicting provider language tag. */
+internal fun captionLanguage(label: String?, language: String?): String? {
+    val name = label.orEmpty().lowercase(java.util.Locale.ROOT)
+    return when {
+        listOf("french", "français", "francais", "fransız").any { it in name } -> "fr"
+        listOf("english", "ingiliz").any { it in name } -> "en"
+        listOf("spanish", "español", "ispanyol").any { it in name } -> "es"
+        listOf("german", "deutsch", "almanca").any { it in name } -> "de"
+        listOf("turkish", "türk", "turk").any { it in name } -> "tr"
+        else -> language
     }
 }
 

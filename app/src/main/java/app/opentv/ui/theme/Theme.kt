@@ -17,20 +17,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * A deliberately dark, low-chroma palette.
- *
- * This is a living-room app: it is looked at in a dark room, from three metres away, often
- * for hours. Bright surfaces and saturated accents that read well on a phone in daylight are
- * actively unpleasant on a 55" panel at night, so everything here is anchored near-black with
- * a single restrained accent used only for focus and selection.
+ * TV / Tablet: deliberate dark, low-chroma palette for ten-foot living room viewing.
+ * Preserves the original OpenTV theme for non-phone devices.
  */
-private val Accent = Color(0xFF7C93FF)
-private val AccentDim = Color(0xFF4B5DB8)
+private val TvAccent = Color(0xFF7C93FF)
+private val TvAccentDim = Color(0xFF4B5DB8)
 
-private val DarkScheme = darkColorScheme(
-    primary = Accent,
+private val TvDarkScheme = darkColorScheme(
+    primary = TvAccent,
     onPrimary = Color(0xFF0A0C14),
-    primaryContainer = AccentDim,
+    primaryContainer = TvAccentDim,
     onPrimaryContainer = Color(0xFFE6EAFF),
     secondary = Color(0xFF9AA3C0),
     background = Color(0xFF07080C),
@@ -45,10 +41,30 @@ private val DarkScheme = darkColorScheme(
 )
 
 /**
- * Light mode for anyone who wants it. By default TV boxes stay dark (a white living-room
- * screen at night is nobody's friend) — that default lives at the call site, so a user who
- * explicitly picks Light in settings gets it on any device.
+ * Mobile Phone: Deep black and vibrant red palette inspired by modern mobile streaming aesthetics (REC TV).
+ * Crimson/red highlights for active tabs, buttons, badges, and key affordances.
  */
+private val MobileAccent = Color(0xFFE50914)
+
+private val MobileDarkScheme = darkColorScheme(
+    primary = MobileAccent,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF380C0E),
+    onPrimaryContainer = Color(0xFFFFDADA),
+    secondary = Color(0xFFE43B42),
+    onSecondary = Color.White,
+    background = Color(0xFF08080B),
+    onBackground = Color(0xFFF2F2F5),
+    surface = Color(0xFF101218),
+    onSurface = Color(0xFFF2F2F5),
+    surfaceVariant = Color(0xFF181B24),
+    onSurfaceVariant = Color(0xFFA2A6B6),
+    outline = Color(0xFF262936),
+    error = Color(0xFFFF4D4D),
+    onError = Color(0xFF1A0505),
+)
+
+/** Light mode fallback. */
 private val LightScheme = lightColorScheme(
     primary = Color(0xFF3B4FCC),
     onPrimary = Color.White,
@@ -61,7 +77,7 @@ private val LightScheme = lightColorScheme(
     outline = Color(0xFFD3D7E2),
 )
 
-/** Scaled up from the Material defaults: ten-foot viewing needs bigger text than a phone. */
+/** Scaled typography tuned for both handheld mobile and ten-foot viewing. */
 private val OpenTvTypography = Typography(
     displaySmall = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.SemiBold),
     headlineMedium = TextStyle(fontSize = 26.sp, fontWeight = FontWeight.SemiBold),
@@ -75,11 +91,20 @@ private val OpenTvTypography = Typography(
 
 @Composable
 fun OpenTvTheme(
+    isPhone: Boolean = true,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
+    val darkScheme = if (isPhone) MobileDarkScheme else TvDarkScheme
+    val lightScheme = if (isPhone) LightScheme.copy(
+        primary = MobileAccent,
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFFFDADA),
+        onPrimaryContainer = Color(0xFF410002),
+        secondary = Color(0xFFB81D24),
+    ) else LightScheme
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkScheme else LightScheme,
+        colorScheme = if (darkTheme) darkScheme else lightScheme,
         typography = OpenTvTypography,
         content = content,
     )

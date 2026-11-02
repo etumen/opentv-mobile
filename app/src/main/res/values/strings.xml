@@ -24,7 +24,19 @@
     <string name="common_try_again">Try again</string>
 
     <!-- ============================ Navigation rail ============================ -->
+    <string name="nav_home">Home</string>
     <string name="nav_live_tv">Live TV</string>
+    <string name="home_featured_movies">Featured Movies</string>
+    <string name="home_featured">Featured</string>
+    <string name="home_continue">Continue Watching</string>
+    <string name="home_explore_genres">Explore Genres</string>
+    <string name="home_popular_series">Series</string>
+    <string name="home_drama">Drama</string>
+    <string name="home_live_channels">Live TV Channels</string>
+    <string name="home_see_all">See All</string>
+    <string name="home_watch_now">Watch</string>
+    <string name="home_detail">Details</string>
+    <string name="home_live_badge">LIVE</string>
     <string name="nav_movies">Movies</string>
     <string name="nav_shows">Shows</string>
     <string name="nav_drama">Drama</string>
@@ -120,7 +132,10 @@
     <string name="player_pause">Pause</string>
     <string name="player_forward">Forward</string>
     <string name="player_subtitles">Subtitles</string>
+    <string name="player_subtitles_tr_available">Turkish subtitles available</string>
     <string name="player_audio">Audio</string>
+    <string name="player_audio_current">Audio: %1$s</string>
+    <string name="player_audio_unknown">Unknown</string>
     <string name="player_quality">Quality</string>
     <string name="player_aspect">Aspect</string>
     <string name="player_record">Record</string>
